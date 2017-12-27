@@ -1,0 +1,1 @@
+wget --http-user=m.zhujiang --http-password=Qaz@1234 --load-cookies mycookies.txt --save-cookies mycookies.txt --keep-session-cookies --no-check-certificate --auth-no-challenge -r --reject "index.html*" -np -nH -nd -e robots=off -i data_url_script_2017-07-05_071720.txt -P ./data/

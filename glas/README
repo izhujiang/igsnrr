@@ -1,0 +1,45 @@
+1. Access to NASA for raw data, and sava local to data dir.
+https://reverb.echo.nasa.gov/reverb/#spatial_map=satellite&spatial_type=rectangle&spatial=40%2C%20102%2C%2043%2C%2099&keywords=GLA14&temporal_start=2003-01-01%2000%3A00%3A00&temporal_end=2009-01-01%2023%3A59%3A59
+
+Step 1: Select Search Criteria
+Search Terms: GLA14
+Spatial Search : 40, 102, 43, 99
+Temporal Search: 2003 - 2009
+
+Step 2: Select Datasets
+GLAS/ICESat L2 Global Land Surface Altimetry Data V034
+Archive Center: NSIDC Short Name: GLA14 Version: 034
+
+generate download data url:
+data_url_script
+
+
+How to download with curl or wget
+-- config .netrc and .urs_cookies
+  > cd ~
+  > touch .netrc
+  "replace uid and password with the realy one"
+  > echo "machine urs.earthdata.nasa.gov login <uid> password <password>" > .netrc
+  > chmod 0600 .netrc
+  > cd ~
+  > touch .urs_cookies
+--
+> wget --load-cookies ~/.urs_cookies --save-cookies ~/.urs_cookies --keep-session-cookies -i data_url_script_2017-05-09_143646.txt -P ./data/
+data_url_script_2017-05-09_143646.txt if the file download from step1
+
+https://wiki.earthdata.nasa.gov/display/EL/How+To+Access+Data+With+cURL+And+Wget
+
+using curl or wget with cygwin in windows
+https://www.cygwin.com/
+
+2. Exact elevation from raw data download with batch_read_altimetry
+  -- generate batch_read_altimetry.ini file with ngat.py script
+  -- run idl batch_read_altimetry.sav
+
+3. ElevationCorrection
+  -- Saturation Correction
+     value by Saturation correction is i_elev + i_satElevCorr.
+     ref: https://nsidc.org/icesat/saturation-correction
+
+  -- Ellipsoid Converter
+     ICESat_wgs84 = ICESat_topex - ICESat_geoid - Offset

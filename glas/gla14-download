@@ -1,0 +1,1 @@
+wget --load-cookies ~/.urs_cookies --save-cookies ~/.urs_cookies --keep-session-cookies -i data_url_script_2017-07-05_071720.txt -P ./data/
