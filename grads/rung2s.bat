@@ -1,0 +1,1 @@
+D:/Python26/ArcGIS10.0/python.exe grid2seriestool.py C:\Users\hurricane\Documents\GitHub\sda_tools\data\temp C:/Users/hurricane/Documents/GitHub/sda_tools/data/mask/bound C:/Users/hurricane/Documents/GitHub/sda_tools/data/gs/gs.txt -i C:/Users/hurricane/Documents/GitHub/sda_tools/converters/inc2.txt -e C:/Users/hurricane/Documents/GitHub/sda_tools/converters/exc2.txt

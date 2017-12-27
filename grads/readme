@@ -1,0 +1,26 @@
+1. 主程序（converters目录下，运行以下命令，当前目录需要切换到converters）
+D:/Python26/ArcGIS10.0/python.exe tasksrunner.py
+
+2. 常见问题
+  参见faq.txt。
+
+3. 使用帮助说明
+D:/Python26/ArcGIS10.0/python.exe tasksrunner.py -h
+
+4. Grads文件转Arcgis grd文件（批量）
+例如：
+D:/Python26/ArcGIS10.0/python.exe tasksrunner.py Grads2ArcGisConverterTool C:/Users/hurricane/Documents/GitHub/sda_tools/data/cmorph/CHN_PRCP_HOUR_MERG_DISPLAY_0.1deg.lnx.ctl C:/Users/hurricane/Documents/GitHub/sda_tools/data/cmorph C:/Users/hurricane/Documents/GitHub/sda_tools/data/arcgis -i C:/Users/hurricane/Documents/GitHub/sda_tools/converters/inc.txt -e C:/Users/hurricane/Documents/GitHub/sda_tools/converters/exc.txt
+
+5. ArcGis grd 转时间序列文件
+例如： 
+D:/Python26/ArcGIS10.0/python.exe tasksrunner.py Grid2SeriesConverterTool C:/Users/hurricane/Documents/GitHub/sda_tools/data/temp C:/Users/hurricane/Documents/GitHub/sda_tools/data/mask/bound C:/Users/hurricane/Documents/GitHub/sda_tools/data/gs/gs.txt -t C:/Users/hurricane/Documents/GitHub/sda_tools/data/temp -i 
+C:/Users/hurricane/Documents/GitHub/sda_tools/converters/inc2.txt -e C:/Users/hurricane/Documents/GitHub/sda_tools/converters/exc2.txt
+
+6. 统计台站观测时段，两个工具组合（SurfMonthly2ByStationTool、StationHistoryTool）
+例如：
+D:/Python26/ArcGIS10.0/python.exe tasksrunner.py SurfMonthly2ByStationTool C:/Users/hurricane/Documents/GitHub/sda_tools/data/surf C:/Users/hurricane/Documents/GitHub/sda_tools/data/output
+D:/Python26/ArcGIS10.0/python.exe tasksrunner.py StationHistoryTool C:/Users/hurricane/Documents/GitHub/sda_tools/data/output C:/Users/hurricane/Documents/GitHub/sda_tools/data/statistics/result.txt
+
+7. converters目录下runtasks.bat,根据以上需求修改并运行。
+使用rem注释相应命令，去掉rem运行影响命令，各命令的所需参数见其说明(子命令 -h)，如
+D:/Python26/ArcGIS10.0/python.exe tasksrunner.py Grid2SeriesConverterTool -h
