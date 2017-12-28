@@ -1,48 +1,56 @@
 # -*- coding: utf-8 -*-
-#COPYRIGHT 2016 igsnrr
+# !/usr/bin/python
+# COPYRIGHT 2016 igsnrr
 #
-#MORE INFO ...
-#email: 
+# MORE INFO ...
+# email:
 """Logger is designed as wrapper of logging."""
-# ######!/usr/bin/python
 
-import sys,os
+import os
 import logging
 
-#define global variables and contants
+# define global variables and contants
 
-""""""
+
 class Logger:
-    
+    """"""
     def __init__(self, logPath):
         dir = os.path.dirname(logPath)
         if not os.path.exists(dir):
             os.makedirs(dir)
 
-        print("Init Logger")
         _version = "Logger.py 0.0.1"
+        print("Init Logger ", _version)
+        fmt = "%(asctime)s %(filename)s[line:%(lineno)d] \
+            %(levelname)s %(message)s"
         logging.basicConfig(level=logging.DEBUG,
-                format="%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s",
-                datefmt="%a, %d %b %Y %H:%M:%S",
-                filename=logPath,
-                filemode="w")
+                            format=fmt,
+                            datefmt="%a, %d %b %Y %H:%M:%S",
+                            filename=logPath,
+                            filemode="w")
         # define StreamHandler#
         console = logging.StreamHandler()
         console.setLevel(logging.INFO)
-        formatter = logging.Formatter("%(name)-12s: %(levelname)-8s %(message)s")
-        console.setFormatter(formatter)
+        ffmt = logging.Formatter("%(name)-12s: %(levelname)-8s %(message)s")
+        console.setFormatter(ffmt)
         logging.getLogger("").addHandler(console)
 
     def debug(self, msg):
         logging.debug(msg)
+
     def info(self, msg):
         logging.info(msg)
+
     def warning(self, msg):
         logging.warning(msg)
+
     def error(self, msg):
         logging.error(msg)
+
     def displayVersion(self):
-        print(self._version)       
+        print(self._version)
+
+
 if __name__ == "__main__":
     log = Logger("./log/sample.log")
 
