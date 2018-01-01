@@ -4,7 +4,6 @@
 #
 # MORE INFO ...
 # email:
-"""Logger is designed as wrapper of logging."""
 
 import os
 import logging
@@ -13,7 +12,7 @@ import logging
 
 
 class Logger:
-    """"""
+    """Logger is designed as wrapper of logging."""
     def __init__(self, logPath):
         dir = os.path.dirname(logPath)
         if not os.path.exists(dir):

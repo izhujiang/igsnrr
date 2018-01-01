@@ -3,7 +3,7 @@
 #COPYRIGHT 2016 igsnrr
 #
 #MORE INFO ...
-#email: 
+#email:
 """The tool is designed to convert GRADS file to arcgis file format such as arcgis grid file."""
 # ######!/usr/bin/python
 
@@ -17,12 +17,12 @@ from toolbase import ToolBase
 
 """"""
 class Grads2ArcGisConverterTool(ToolBase):
-    
+
     def __init__(self):
         ToolBase.__init__(self, "Grads2ArcGisConverterTool", "The Grads2ArcGisConverter tool is to convert GRADS file to arcgis file format such as arcgis grid file.")
-        self._version = "grads2arcgistool.py 0.0.1"        
-    
-    def defineArgumentParser(self, parser):        
+        self._version = "grads2arcgistool.py 0.0.1"
+
+    def defineArgumentParser(self, parser):
         parser.add_argument("ctrl", action="store", help="ctrl file for grads files")
         parser.add_argument("source", action="store", help="root dir for source files")
         parser.add_argument("target", action="store", help="root dir for source files")
@@ -36,10 +36,10 @@ class Grads2ArcGisConverterTool(ToolBase):
         targetRoot = args.target
         inclusiveFilesPath = args.include
         exclusiveFilesPath = args.exclude
-    
+
         self.loadMeta(ctlPath)
         self.batchConvert(srcRoot, targetRoot, inclusiveFilesPath, exclusiveFilesPath)
-    
+
 
     def loadMeta(self, path):
         list_of_all_the_lines = []
@@ -67,7 +67,7 @@ class Grads2ArcGisConverterTool(ToolBase):
 ##        print("bottom and upper: {0}  {1}".format(self._bottom, self._upper))
 
 
-    """Exclude the files in the list load from configue file for exclusive items"""            
+    """Exclude the files in the list load from configue file for exclusive items"""
     def loadBatchFileList(self, srcPathRoot, inclusiveFilesPath=None, exclusiveFilesPath=None):
         self._taskList = []
         if inclusiveFilesPath is None:
@@ -77,16 +77,16 @@ class Grads2ArcGisConverterTool(ToolBase):
                     self._taskList.append(item)
         else:
             with open(inclusiveFilesPath) as fbo:
-                for line in fbo.readlines():  
+                for line in fbo.readlines():
                  self._taskList.append(line.strip("\n"))
-        
+
         self._taskExclusiveList = []
         if exclusiveFilesPath is None:
             return
         with open(exclusiveFilesPath) as feo:
             for line in feo.readlines():
                 self._taskExclusiveList.append(line.strip("\n"))
-            
+
     def batchConvert(self, srcPathRoot, targetPathRoot, inclusiveFileListPath=None, exclusiveFilePath=None):
         self.loadBatchFileList(srcPathRoot, inclusiveFileListPath, exclusiveFilePath)
         if os.path.exists(targetPathRoot) and len(os.listdir(targetPathRoot)) > 0:
@@ -100,7 +100,7 @@ class Grads2ArcGisConverterTool(ToolBase):
                 return
         if not os.path.exists(targetPathRoot):
             os.makedirs(targetPathRoot)
-        
+
         for item in self._taskList:
             if item not in self._taskExclusiveList:
                 srcPath = os.path.join(srcPathRoot, item)
@@ -112,8 +112,8 @@ class Grads2ArcGisConverterTool(ToolBase):
                 targetPath = os.path.join(targetPathRoot, "gr"+target.replace(".grd",""))
                 print("converting {0} to {1}" .format(srcPath, targetPath))
                 self.convert(srcPath, targetPath,1,"int32")
-                
-                
+
+
     def convert(self, srcPath, targetPath, index=0, needRetype=None):
         if not os.path.exists(srcPath) or not srcPath.endswith(".grd"):
             self._logger.info("Failed: {0} does not existe or not valid grads *.grd file ".format(srcPath))
@@ -123,22 +123,22 @@ class Grads2ArcGisConverterTool(ToolBase):
                 src = src.astype(needRetype)
             data = src.reshape(2, self._row, self._col)
             rain = data[index]
-            
+
             sr = arcpy.SpatialReference()
             sr.factoryCode = 4326
             sr.create()
-            
+
             arcpy.env.outputCoordinateSystem = sr
             rasterBlock = arcpy.NumPyArrayToRaster(rain, arcpy.Point(self._left, self._bottom),
                                                      self._xspace, self._yspace, self._undef)
             # bug: arcpy.NumPyArrayToRaster can"t work with reversal array
             #rasterBlock = arcpy.NumPyArrayToRaster(rev_rain, arcpy.Point(self._left, self._bottom),
-            #                                         self._xspace, self._yspace, self._undef) 
+            #                                         self._xspace, self._yspace, self._undef)
             #rasterBlock.save(targetPath)
             arcpy.Flip_management(rasterBlock, targetPath)
             del src
-            
-        except Exception as e:  
+
+        except Exception as e:
             self._logger.error("Failed: {0} convert to {1}".format(srcPath, targetPath))
             self._logger.info(e)
         else:
@@ -146,24 +146,24 @@ class Grads2ArcGisConverterTool(ToolBase):
         finally:
             ## clean up
             pass
-    
-            
+
+
 if __name__ == "__main__":
     # testing code
     tool = Grads2ArcGisConverterTool()
     # workspace = "C:/Users/hurricane/Documents/GitHub/sda_tools/data/"
-    # srcRoot = workspace + "surf"    
+    # srcRoot = workspace + "surf"
     # targetRoot = workspace + "output"
     import argparse
     from logger import Logger
-    parser = argparse.ArgumentParser(prog="python.exe grads2arcgistool.py", description="Grads2ArcGisConverterTool Usage Guide", prefix_chars="-+/") 
+    parser = argparse.ArgumentParser(prog="python.exe grads2arcgistool.py", description="Grads2ArcGisConverterTool Usage Guide", prefix_chars="-+")
     parser.add_argument("--version", action="version", version="%(prog)s 0.0.1")
     tool.defineArgumentParser(parser)
     logger = Logger("./log/gac.log")
     tool.attachLogger(logger)
-    args = parser.parse_args() 
+    args = parser.parse_args()
     # print(args)
-    tool.run(args)   
+    tool.run(args)
 
 else:
     print("loading Grads2ArcGisConverter module")

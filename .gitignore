@@ -100,7 +100,11 @@ ENV/
 # mypy
 .mypy_cache/
 
+#repo
+.ropeproject/
+
 # data
 data
+
 #log
 log

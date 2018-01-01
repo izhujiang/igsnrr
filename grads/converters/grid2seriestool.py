@@ -229,7 +229,7 @@ if __name__ == "__main__":
 
     import argparse
     from logger import Logger
-    parser = argparse.ArgumentParser(prog="python.exe grid2seriestool.py", description="Grid2SeriesConverterTool Usage Guide", prefix_chars="-+/")
+    parser = argparse.ArgumentParser(prog="python.exe grid2seriestool.py", description="Grid2SeriesConverterTool Usage Guide", prefix_chars="-+")
     parser.add_argument("--version", action="version", version="%(prog)s 0.0.1")
     tool.defineArgumentParser(parser)
 

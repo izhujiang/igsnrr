@@ -1,12 +1,10 @@
-#!/usr/bin/python
-# #### #!c:/Python26/ArcGIS10.0/python.exe
 # -*- coding: utf-8 -*-
+# !/usr/bin/python
 # COPYRIGHT 2016 igsnrr
 #
 # MORE INFO ...
 # email:
-"""TasksRunner is designed as the user interface and main entry to
-execute specific tools."""
+# #### #!c:/Python26/ArcGIS10.0/python.exe
 
 import sys
 import argparse
@@ -30,7 +28,7 @@ class TasksRunner:
         self._parser = argparse.ArgumentParser(
             prog="python.exe tasksrunner.py",
             description="Tasks Runner Usage Guide.",
-            prefix_chars="-+/")
+            prefix_chars="-+")
         self._parser.add_argument("--version",
                                   action="version",
                                   version='%(prog)s 0.0.1')
