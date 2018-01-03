@@ -37,28 +37,40 @@ class Surf4HoursTool(ToolBase):
         print(srcRoot, "-->", targetRoot)
 
         bystationDir = os.path.join(targetRoot, "bystation")
-        dailyDir = os.path.join(targetRoot, "daily")
-        monthlyDir = os.path.join(targetRoot, "monthly")
         self.batchConvert(srcRoot, bystationDir)
-        self.statisticsDaily(bystationDir, dailyDir)
+
+        # 08-08, qixiang
+        subdir = "qx0808"
+        dailyDir = os.path.join(targetRoot, subdir, "daily0808")
+        monthlyDir = os.path.join(targetRoot, subdir, "monthly0808")
+        yearDir = os.path.join(targetRoot, subdir, "year0808")
+
+        self.statisticsDaily(bystationDir, dailyDir, "0808")
         self.statisticsMonthly(dailyDir, monthlyDir)
+        self.statisticsYears(monthlyDir, yearDir)
+
+        # 20-20, qixiang
+        subdir = "qx2020"
+        dailyDir = os.path.join(targetRoot, subdir, "daily2020")
+        monthlyDir = os.path.join(targetRoot, subdir, "monthly2020")
+        yearDir = os.path.join(targetRoot, subdir, "year2020")
+
+        self.statisticsDaily(bystationDir, dailyDir, "2020")
+        self.statisticsMonthly(dailyDir, monthlyDir)
+        self.statisticsYears(monthlyDir, yearDir)
+
+        # 08-08, shuili
+        subdir = "sl0808"
+        dailyDir = os.path.join(targetRoot, subdir,  "daily0808-sl")
+        monthlyDir = os.path.join(targetRoot, subdir, "monthly0808-sl")
+        yearDir = os.path.join(targetRoot, subdir, "year080800-sl")
+
+        self.statisticsDaily(bystationDir, dailyDir, "0832")
+        self.statisticsMonthly(dailyDir, monthlyDir)
+        self.statisticsYears(monthlyDir, yearDir)
 
     def batchConvert(self, srcPathRoot, targetPathRoot):
-        if (os.path.exists(targetPathRoot)
-                and len(os.listdir(targetPathRoot)) > 0):
-            print("\nThe dir of {0} is not empty and will been overrided."
-                  .format(targetPathRoot))
-            # ans = input()
-            # if ans is "" or ans.lower() == "y" or ans.lower() == "yes":
-            shutil.rmtree(targetPathRoot, True)
-            time.sleep(1)
-            # else:
-            #     self._logger.info("Failed: {0} has existed and can't been \
-            #                       overrided ".format(targetPathRoot))
-            #     return
-        if not os.path.exists(targetPathRoot):
-            os.makedirs(targetPathRoot)
-
+        self.clearDirectory(targetPathRoot)
         filelist = sorted(os.listdir(srcPathRoot))
 
         for item in filelist:
@@ -87,6 +99,8 @@ class Surf4HoursTool(ToolBase):
             if items[0] not in group:
                 group[items[0]] = []
 
+            if items[7] == "999990":
+                items[7] == "0"
             rec = strfmt.format(items[0], int(items[1]), int(items[2]),
                                 int(items[3]), int(items[4]), float(items[5]),
                                 float(items[6]), float(items[7]))
@@ -114,21 +128,16 @@ class Surf4HoursTool(ToolBase):
                 fo.flush()
             fo.close()
 
-    def statisticsDaily(self, srcPathRoot, targetPathRoot):
-        if (os.path.exists(targetPathRoot)
-                and len(os.listdir(targetPathRoot)) > 0):
-            print("\nThe dir of {0} is not empty and will been overrided."
-                  .format(targetPathRoot))
-        if not os.path.exists(targetPathRoot):
-            os.makedirs(targetPathRoot)
-
+    def statisticsDaily(self, srcPathRoot, targetPathRoot, stat_win):
+        self.clearDirectory(targetPathRoot)
         filelist = os.listdir(srcPathRoot)
         for item in filelist:
             srcPath = os.path.join(srcPathRoot, item)
             targetPath = os.path.join(targetPathRoot, item)
-            self.stasticsDailySingleStatation(item, srcPath, targetPath)
+            self.stasticsDailySingleStatation(item, srcPath,
+                                              targetPath, stat_win)
 
-    def stasticsDailySingleStatation(self, sid, srcPath, targetPath):
+    def stasticsDailySingleStatation(self, sid, srcPath, targetPath, stat_win):
         print("processing {0}".format(srcPath))
         db = pd.read_table(srcPath, skip_blank_lines=True,
                            delim_whitespace=True, index_col="DATETIME")
@@ -139,19 +148,34 @@ class Surf4HoursTool(ToolBase):
         endDay = date(2020, 1, 1)
         curDay = date(year, 1, 1)
         while(curDay < endDay):
-            recs = self.queryData(db, curDay, 8)
+            if stat_win == "0808":
+                recs = self.queryData(db, curDay, 16)
+            elif stat_win == "2020":
+                recs = self.queryData(db, curDay, 4)
+            else:
+                recs = self.queryData(db, curDay, -8)
+
             if not recs.empty:
-                day_rec = self.calcDaily(sid, curDay, recs)
+                day_rec = self.calcDaily(sid, curDay, recs, stat_win)
                 if day_rec is not None:
                     result.append(day_rec)
             curDay = curDay + timedelta(days=1)
 
-        header = ("{:>8}{:>10}{:>10}{:>10}{:>10}{:>10}{:>10}{:>10}"
-                  "{:>10}{:>10}{:>10}\n") .format("SID", "DATE", "AVG_PRES",
-                                                  "MAX_PRES", "MIN_PRES",
-                                                  "AVG+TEMP", "MAX_TEMP",
-                                                  "MIN_TEMP", "PREC20-20",
-                                                  "PREC20-08", "PREC08-20")
+        if stat_win == "0808" or stat_win == "0832":
+            header = ("{:>8}{:>10}{:>6}{:>4}{:>4}{:>10}{:>10}{:>10}{:>10}"
+                      "{:>10}{:>10}{:>10}{:>4}{:>10}{:>4}{:>10}{:>4}\n") \
+                .format("SID", "DATE", "YEAR", "MON", "DAY",
+                        "AVG_PRES", "MAX_PRES", "MIN_PRES",
+                        "AVG_TEMP", "MAX_TEMP", "MIN_TEMP",
+                        "PREC24", "CNT", "PREC08_20", "C1", "PREC20_08", "C2")
+        else:
+            header = ("{:>8}{:>10}{:>6}{:>4}{:>4}{:>10}{:>10}{:>10}{:>10}"
+                      "{:>10}{:>10}{:>10}{:>4}{:>10}{:>4}{:>10}{:>4}\n") \
+                .format("SID", "DATE", "YEAR", "MON", "DAY",
+                        "AVG_PRES", "MAX_PRES", "MIN_PRES",
+                        "AVG_TEMP", "MAX_TEMP", "MIN_TEMP",
+                        "PREC24", "CNT", "PREC20_08", "C1", "PREC08_20", "C2")
+
         with open(targetPath, 'w') as fo:
             fo.write(header)
             fo.writelines(result)
@@ -166,13 +190,13 @@ class Surf4HoursTool(ToolBase):
         recs = db.query(cond)
         return recs
 
-    def calcDaily(self, sid, dt, hours24):
+    def calcDaily(self, sid, dt, hours24, stat_win):
         """
         http://www.szmb.gov.cn/quf/2009/08/2017101815192310488.pdf
         """
         if (len(hours24) > 24):
 
-                self._logger.error(("{1}-{2:0>2d}-{3:0>2d},"
+                self._logger.error(("{1}-{2:0>2d}-{3:0>2d},  "
                                     "Station {0} has more than 24 records on")
                                    .format(sid, dt.year, dt.month, dt.day))
 
@@ -196,7 +220,7 @@ class Surf4HoursTool(ToolBase):
                     avg_pres = 999999
                     max_pres = 999999
                     min_pres = 999999
-                    self._logger.error(("{1}-{2:0>2d}-{3:0>2d},"
+                    self._logger.error(("{1}-{2:0>2d}-{3:0>2d},  "
                                         "Station {0} miss pressure at"
                                         "[02, 08, 14, 20]")
                                        .format(sid, dt.year, dt.month, dt.day))
@@ -220,41 +244,201 @@ class Surf4HoursTool(ToolBase):
                     avg_temp = 999999
                     max_temp = 999999
                     min_temp = 999999
-                    self._logger.error(("{1}-{2:0>2d}-{3:0>2d},"
+                    self._logger.error(("{1}-{2:0>2d}-{3:0>2d},  "
                                         "Station {0} miss temperature at"
                                         "[02, 08, 14, 20]")
                                        .format(sid, dt.year, dt.month, dt.day))
 
             # statistics precipation
             valid_prec = hours24.query("200 > PREC >= 0")
-            if len(valid_prec) != 24:
-                prec24 = 999999
-            else:
-                prec24 = valid_prec["PREC"].sum()
+            prec24 = valid_prec["PREC"].sum()
+            prec24_cnt = len(valid_prec)
+
             am_prec = valid_prec.query("HR <=8 | HR>20")
             pm_prec = valid_prec.query("8 <  HR <= 20")
-            if len(am_prec) != 12:
-                prec12_am = 999999
-            else:
-                prec12_am = am_prec["PREC"].sum()
-            if len(pm_prec) != 12:
-                prec12_pm = 999999
-            else:
-                prec12_pm = pm_prec["PREC"].sum()
 
-            # print("prec: ", prec24, prec12_am, prec12_pm, "\n")
+            prec12_am = am_prec["PREC"].sum()
+            prec12_am_cnt = len(am_prec)
+            prec12_pm = pm_prec["PREC"].sum()
+            prec12_pm_cnt = len(pm_prec)
 
-            rec = ("{:>8}{:>10}{:>10.1f}{:>10.1f}{:>10.1f}"
-                   "{:>10.1f}{:>10.1f}{:>10.1f}"
-                   "{:>10.1f}{:>10.1f}{:>10.1f}\n") \
-                .format(sid, dt.strftime("%Y%m%d"),
-                        avg_pres, max_pres, min_pres,
-                        avg_temp, max_temp, min_temp,
-                        prec24, prec12_am, prec12_pm)
+            if stat_win == "0808" or stat_win == "0832":
+                rec = ("{:>8}{:>10}{:>6}{:>4}{:>4}{:>10.1f}{:>10.1f}{:>10.1f}"
+                       "{:>10.1f}{:>10.1f}{:>10.1f}"
+                       "{:>10.1f}{:>4d}{:>10.1f}{:>4d}{:>10.1f}{:>4d}\n") \
+                    .format(sid, dt.strftime("%Y%m%d"),
+                            dt.year, dt.month, dt.day,
+                            avg_pres, max_pres, min_pres,
+                            avg_temp, max_temp, min_temp,
+                            prec24, prec24_cnt, prec12_pm,
+                            prec12_pm_cnt, prec12_am, prec12_am_cnt)
+            else:
+                rec = ("{:>8}{:>10}{:>6}{:>4}{:>4}{:>10.1f}{:>10.1f}{:>10.1f}"
+                       "{:>10.1f}{:>10.1f}{:>10.1f}"
+                       "{:>10.1f}{:>4d}{:>10.1f}{:>4d}{:>10.1f}{:>4d}\n") \
+                    .format(sid, dt.strftime("%Y%m%d"),
+                            dt.year, dt.month, dt.day,
+                            avg_pres, max_pres, min_pres,
+                            avg_temp, max_temp, min_temp,
+                            prec24, prec24_cnt, prec12_am, prec12_am_cnt,
+                            prec12_pm, prec12_pm_cnt)
             return rec
 
     def statisticsMonthly(self, srcPathRoot, targetPathRoot):
-        pass
+        self.clearDirectory(targetPathRoot)
+        filelist = os.listdir(srcPathRoot)
+        for item in filelist:
+            srcPath = os.path.join(srcPathRoot, item)
+            targetPath = os.path.join(targetPathRoot, item)
+            self.stasticsMonthSingleStatation(item, srcPath, targetPath)
+
+    def stasticsMonthSingleStatation(self, sid, srcPath, targetPath):
+        db = pd.read_table(srcPath, skip_blank_lines=True,
+                           delim_whitespace=True, index_col="DATE")
+        result = []
+        # todo: do config the range of loop
+
+        for year in range(2010, 2020):
+            for mon in range(1, 13):
+                cond = "YEAR == {0} & MON == {1}".format(year, mon)
+                recs = db.query(cond)
+                if not recs.empty:
+                    mon_rec = self.calcMonthly(sid, year, mon, recs)
+                    result.append(mon_rec)
+
+        header = ("{:>8}{:>6}{:>4}{:>10}{:>10}{:>10}{:>10}"
+                  "{:>10}{:>10}{:>10}{:>4}\n").format(
+                      "SID", "YEAR", "MON",
+                      "AVG_PRES", "MAX_PRES", "MIN_PRES",
+                      "AVG_TEMP", "MAX_TEMP", "MIN_TEMP",
+                      "PREC_MON", "CNT")
+        with open(targetPath, 'w') as fo:
+            fo.write(header)
+            fo.writelines(result)
+        fo.close()
+
+    def calcMonthly(self, sid, year, mon, recs):
+        if len(recs) > 0:
+            # statistics pressure
+            valid_pressure = recs.query("1200 > AVG_PRES > 800")
+            # print(valid_pressure)
+            if len(valid_pressure) >= 24:
+                avg_pres = valid_pressure["AVG_PRES"].mean()
+                max_pres = valid_pressure["MAX_PRES"].max()
+                min_pres = valid_pressure["MIN_PRES"].min()
+            else:
+                avg_pres = 999999
+                max_pres = 999999
+                min_pres = 999999
+                self._logger.error(("{1}-{2:0>2d},  "
+                                    "Station {0} miss pressure.")
+                                   .format(sid, year, mon))
+
+            # statistics temperature
+            valid_temperature = recs.query("60 > AVG_TEMP > -60")
+            # print(valid_temperature)
+            if len(valid_temperature) >= 24:
+                avg_temp = valid_temperature["AVG_TEMP"].mean()
+                max_temp = valid_temperature["MAX_TEMP"].max()
+                min_temp = valid_temperature["MIN_TEMP"].min()
+            else:
+                avg_temp = 999999
+                max_temp = 999999
+                min_temp = 999999
+                self._logger.error(("{1}-{2:0>2d},  "
+                                    "Station {0} miss temperature")
+                                   .format(sid, year, mon,))
+
+            # statistics precipation
+            valid_prec = recs.query("500 > PREC24 >= 0")
+            prec_mon = valid_prec["PREC24"].sum()
+            prec_cnt = len(valid_prec)
+
+            rec = ("{:>8}{:>6}{:>4}{:>10.1f}{:>10.1f}{:>10.1f}"
+                   "{:>10.1f}{:>10.1f}{:>10.1f}{:>10.1f}{:>4d}\n") \
+                .format(sid, year, mon, avg_pres, max_pres, min_pres,
+                        avg_temp, max_temp, min_temp, prec_mon, prec_cnt)
+            return rec
+
+    def statisticsYears(self, srcPathRoot, targetPathRoot):
+        self.clearDirectory(targetPathRoot)
+        filelist = os.listdir(srcPathRoot)
+        for item in filelist:
+            srcPath = os.path.join(srcPathRoot, item)
+            targetPath = os.path.join(targetPathRoot, item)
+            self.stasticsYearSingleStatation(item, srcPath, targetPath)
+
+    def stasticsYearSingleStatation(self, sid, srcPath, targetPath):
+        db = pd.read_table(srcPath, skip_blank_lines=True,
+                           delim_whitespace=True, index_col=["YEAR", "MON"])
+        result = []
+        # todo: do config the range of loop
+
+        for year in range(2010, 2020):
+            cond = "YEAR == {0}".format(year)
+            recs = db.query(cond)
+            if not recs.empty:
+                mon_rec = self.calcYear(sid, year, recs)
+                result.append(mon_rec)
+
+        header = ("{:>8}{:>6}{:>10}{:>10}{:>10}{:>10}"
+                  "{:>10}{:>10}{:>10}{:>4}\n").format(
+                      "SID", "YEAR",
+                      "AVG_PRES", "MAX_PRES", "MIN_PRES",
+                      "AVG_TEMP", "MAX_TEMP", "MIN_TEMP",
+                      "PREC_Y", "CNT")
+        with open(targetPath, 'w') as fo:
+            fo.write(header)
+            fo.writelines(result)
+        fo.close()
+
+    def calcYear(self, sid, year, recs):
+        if len(recs) > 0:
+            # statistics pressure
+            valid_pressure = recs.query("1200 > AVG_PRES > 800")
+            if len(valid_pressure) >= 10:
+                avg_pres = valid_pressure["AVG_PRES"].mean()
+                max_pres = valid_pressure["MAX_PRES"].max()
+                min_pres = valid_pressure["MIN_PRES"].min()
+            else:
+                avg_pres = 999999
+                max_pres = 999999
+                min_pres = 999999
+                self._logger.error(("{1}, Station {0} miss pressure.")
+                                   .format(sid, year))
+
+            # statistics temperature
+            valid_temperature = recs.query("60 > AVG_TEMP > -60")
+            if len(valid_temperature) >= 10:
+                avg_temp = valid_temperature["AVG_TEMP"].mean()
+                max_temp = valid_temperature["MAX_TEMP"].max()
+                min_temp = valid_temperature["MIN_TEMP"].min()
+            else:
+                avg_temp = 999999
+                max_temp = 999999
+                min_temp = 999999
+                self._logger.error(("{1}, Station {0} miss temperature")
+                                   .format(sid, year))
+
+            # statistics precipation
+            valid_prec = recs.query("5000 > PREC_MON >= 0")
+            prec_year = valid_prec["PREC_MON"].sum()
+            prec_cnt = len(valid_prec)
+
+            rec = ("{:>8}{:>6}{:>10.1f}{:>10.1f}{:>10.1f}"
+                   "{:>10.1f}{:>10.1f}{:>10.1f}{:>10.1f}{:>4d}\n") \
+                .format(sid, year, avg_pres, max_pres, min_pres,
+                        avg_temp, max_temp, min_temp, prec_year, prec_cnt)
+            return rec
+
+    def clearDirectory(self, targetRoot):
+        if os.path.exists(targetRoot) and len(os.listdir(targetRoot)) > 0:
+            print("\nThe dir of {0} is not empty and will been overrided."
+                  .format(targetRoot))
+            shutil.rmtree(targetRoot, True)
+            time.sleep(1)
+        if not os.path.exists(targetRoot):
+            os.makedirs(targetRoot)
 
 
 if __name__ == "__main__":
