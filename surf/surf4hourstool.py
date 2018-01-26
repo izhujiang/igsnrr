@@ -63,7 +63,7 @@ class Surf4HoursTool(ToolBase):
         subdir = "sl0808"
         dailyDir = os.path.join(targetRoot, subdir,  "daily0808")
         monthlyDir = os.path.join(targetRoot, subdir, "monthly0808")
-        yearDir = os.path.join(targetRoot, subdir, "year080800")
+        yearDir = os.path.join(targetRoot, subdir, "year0808")
 
         self.statisticsDaily(bystationDir, dailyDir, "0832")
         self.statisticsMonthly(dailyDir, monthlyDir)
