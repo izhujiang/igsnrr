@@ -84,6 +84,11 @@ class Surf4HoursTool(ToolBase):
         if not os.path.exists(srcPath):
             self._loggej.info("Failed: {0} does't existe".format(srcPath))
 
+        filename = os.path.basename(srcPath)
+        year = int(filename[:4])
+        mon = int(filename[4:6])
+        day = int(filename[6:8])
+
         recs = []
         with open(srcPath) as f:
             recs = f.readlines()
@@ -108,9 +113,17 @@ class Surf4HoursTool(ToolBase):
 
         for k, v in group.items():
             target = os.path.join(targetRoot, k)
-            # print(v)
+
+            recs_w = [
+                    strfmt.format(k, year, mon, day, i, 999999, 999999, 999999)
+                    for i in range(24)]
+
+            for line in v:
+                items = line.split()
+                recs_w[int(items[5])] = line
+
             with open(target, 'a') as fo:
-                fo.writelines(v)
+                fo.writelines(recs_w)
             fo.close()
 
     def insertHeader(self, parentDir):
@@ -122,9 +135,49 @@ class Surf4HoursTool(ToolBase):
         for item in filelist:
             with open(os.path.join(parentDir, item), 'r+') as fo:
                 recs = fo.readlines()
+                sample = recs[0].split()
+                sid = sample[0]
+                year = int(sample[2])
+                mon = int(sample[3])
+                day = int(sample[4])
+
+                today = date(year, mon, day)
+                nextday = today
                 fo.seek(0)
                 fo.write(header)
-                fo.writelines(recs)
+
+                index = 0
+                last_rec = len(recs) - 1
+                while index < last_rec:
+                    if nextday == today:
+                        fo.writelines(recs[index: index+24])
+                        index = index + 24
+                        if index > last_rec:
+                            break
+
+                        sample = recs[index].split()
+                        sid = sample[0]
+                        year = int(sample[2])
+                        mon = int(sample[3])
+                        day = int(sample[4])
+
+                        nextday = date(year, mon, day)
+                    else:
+                        strfmt = (
+                                "{0:>8}{1:>6d}{2:0>2d}{3:0>2d}{4:0>2d}"
+                                "{1:>6d}{2:>4d}{3:>4d}{4:>4d}"
+                                "{5:>12.1f}{6:>12.1f}{7:>12.1f}\n")
+                        year = today.year
+                        mon = today.month
+                        day = today.day
+
+                        recs_empty = [
+                                strfmt.format(
+                                    sid, year, mon, day, i,
+                                    999999, 999999, 999999) for i in range(24)]
+                        fo.writelines(recs_empty)
+
+                    today = today + timedelta(days=1)
                 fo.flush()
             fo.close()
 
