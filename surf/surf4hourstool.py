@@ -306,14 +306,21 @@ class Surf4HoursTool(ToolBase):
             valid_prec = hours24.query("200 > PREC >= 0")
             prec24 = valid_prec["PREC"].sum()
             prec24_cnt = len(valid_prec)
+            if prec24_cnt == 0:
+                prec24 = 999999
 
             am_prec = valid_prec.query("HR <=8 | HR>20")
             pm_prec = valid_prec.query("8 <  HR <= 20")
 
             prec12_am = am_prec["PREC"].sum()
             prec12_am_cnt = len(am_prec)
+            if prec12_am_cnt == 0:
+                prec12_am = 999999
+
             prec12_pm = pm_prec["PREC"].sum()
             prec12_pm_cnt = len(pm_prec)
+            if prec12_pm_cnt == 0:
+                prec12_pm = 999999
 
             if stat_win == "0808" or stat_win == "0832":
                 rec = ("{:>8}{:>10}{:>6}{:>4}{:>4}{:>10.1f}{:>10.1f}{:>10.1f}"
@@ -360,11 +367,11 @@ class Surf4HoursTool(ToolBase):
                     result.append(mon_rec)
 
         header = ("{:>8}{:>6}{:>4}{:>10}{:>10}{:>10}{:>10}"
-                  "{:>10}{:>10}{:>10}{:>4}\n").format(
+                  "{:>10}{:>10}{:>10}{:>4}{:>12}{:>6}\n").format(
                       "SID", "YEAR", "MON",
                       "AVG_PRES", "MAX_PRES", "MIN_PRES",
                       "AVG_TEMP", "MAX_TEMP", "MIN_TEMP",
-                      "PREC_MON", "CNT")
+                      "PREC_MON", "CNT", "PREC24_MON", "CNT24")
         with open(targetPath, 'w') as fo:
             fo.write(header)
             fo.writelines(result)
@@ -406,11 +413,21 @@ class Surf4HoursTool(ToolBase):
             valid_prec = recs.query("500 > PREC24 >= 0")
             prec_mon = valid_prec["PREC24"].sum()
             prec_cnt = len(valid_prec)
+            if prec_cnt == 0:
+                prec_mon = 999999
+
+            valid_prec = recs.query("500 > PREC24 >= 0 & CNT == 24")
+            prec24_mon = valid_prec["PREC24"].sum()
+            prec24_cnt = len(valid_prec)
+            if prec24_cnt == 0:
+                prec24_mon = 999999
 
             rec = ("{:>8}{:>6}{:>4}{:>10.1f}{:>10.1f}{:>10.1f}"
-                   "{:>10.1f}{:>10.1f}{:>10.1f}{:>10.1f}{:>4d}\n") \
+                   "{:>10.1f}{:>10.1f}{:>10.1f}{:>10.1f}{:>4d}"
+                   "{:>12.1f}{:>6d}\n") \
                 .format(sid, year, mon, avg_pres, max_pres, min_pres,
-                        avg_temp, max_temp, min_temp, prec_mon, prec_cnt)
+                        avg_temp, max_temp, min_temp, prec_mon, prec_cnt,
+                        prec24_mon, prec24_cnt)
             return rec
 
     def statisticsYears(self, srcPathRoot, targetPathRoot):
@@ -435,11 +452,11 @@ class Surf4HoursTool(ToolBase):
                 result.append(mon_rec)
 
         header = ("{:>8}{:>6}{:>10}{:>10}{:>10}{:>10}"
-                  "{:>10}{:>10}{:>10}{:>4}\n").format(
+                  "{:>10}{:>10}{:>10}{:>4}{:>10}{:>6}\n").format(
                       "SID", "YEAR",
                       "AVG_PRES", "MAX_PRES", "MIN_PRES",
                       "AVG_TEMP", "MAX_TEMP", "MIN_TEMP",
-                      "PREC_Y", "CNT")
+                      "PREC_Y", "CNT", "PREC24_Y", "CNT24")
         with open(targetPath, 'w') as fo:
             fo.write(header)
             fo.writelines(result)
@@ -477,11 +494,21 @@ class Surf4HoursTool(ToolBase):
             valid_prec = recs.query("5000 > PREC_MON >= 0")
             prec_year = valid_prec["PREC_MON"].sum()
             prec_cnt = len(valid_prec)
+            if prec_cnt == 0:
+                prec_year = 999999
+
+            valid_prec = recs.query("5000 > PREC24_MON >= 0")
+            prec24_year = valid_prec["PREC24_MON"].sum()
+            prec24_cnt = len(valid_prec)
+            if prec24_year == 0:
+                prec24_year = 999999
 
             rec = ("{:>8}{:>6}{:>10.1f}{:>10.1f}{:>10.1f}"
-                   "{:>10.1f}{:>10.1f}{:>10.1f}{:>10.1f}{:>4d}\n") \
+                   "{:>10.1f}{:>10.1f}{:>10.1f}{:>10.1f}"
+                   "{:>4d}{:>10.1f}{:>6d}\n") \
                 .format(sid, year, avg_pres, max_pres, min_pres,
-                        avg_temp, max_temp, min_temp, prec_year, prec_cnt)
+                        avg_temp, max_temp, min_temp, prec_year, prec_cnt,
+                        prec24_year, prec24_cnt)
             return rec
 
     def clearDirectory(self, targetRoot):
