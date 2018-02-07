@@ -25,7 +25,7 @@ class SurfDailyTool(ToolBase):
     def defineArgumentParser(self, parser):
         parser.add_argument(
                 "subcmd", action="store",
-                help="Subcommands (convert, filter) are supported.")
+                help="Supporting Subcommands (convert, filter, prec_events).")
         parser.add_argument("source", action="store",
                             help="root dir for source files")
         parser.add_argument("target", action="store",
@@ -51,6 +51,10 @@ class SurfDailyTool(ToolBase):
             dayFrom = args.begin
             dayTo = args.end
             self.filterSurfDaily(srcRoot, targetRoot, dayFrom, dayTo)
+        elif subcmd == "prec_events":
+            srcRoot = args.source
+            targetRoot = args.target
+            self.statisicsPrecEvent(srcRoot, targetRoot)
 
     def batchConvert(self, srcPathRoot, targetPathRoot):
         self.clearDirectory(targetPathRoot)
@@ -199,6 +203,84 @@ class SurfDailyTool(ToolBase):
             fo.writelines(recs_filter)
         fo.close()
 
+    def statisicsPrecEvent(self, srcRoot, targetRoot):
+        self.clearDirectory(targetRoot)
+        filelist = sorted(os.listdir(srcRoot))
+
+        for item in filelist:
+            if not item.startswith("."):
+                srcPath = os.path.join(srcRoot, item)
+                targetPath = os.path.join(targetRoot, item)
+
+                print("PrecEvent: " + srcPath + " --> " + targetPath)
+                self.statisicsPrecEventSingleStation(srcPath, targetPath)
+
+    def statisicsPrecEventSingleStation(self, srcPath, targetPath):
+        with open(srcPath) as f:
+            recs = f.readlines()
+        f.close()
+
+        flags = list(map(isRainday, recs))
+        flags.insert(0, 0)
+        flags.append(0)
+
+        vFlags = [flags[i] - flags[i-1] for i in range(1, len(flags))]
+        # print(vFlags)
+
+        startIndexs = []
+        endIndexs = []
+        for i in range(len(vFlags)):
+            if vFlags[i] == 1:
+                startIndexs.append(i)
+            elif vFlags[i] == -1:
+                endIndexs.append(i)
+            else:
+                pass
+
+        if len(startIndexs) != len(endIndexs):
+            self._logger.Warning(
+                    "Checking codes ... unequal length "
+                    "of startIndexs and endIndexs")
+
+        recs_events = []
+
+        strfmt = (
+                "{0:>8}{1:>8d}{2:>8d}{3:>8d}"
+                "{4:>8d}{5:0>2d}{6:0>2d}")
+        #        "{4:>8d}{5:>4d}{6:>4d}")
+        strfmt2 = "{0}{1:>8d}{2:0>2d}{3:0>2d}{4:8d}{5:10d}\n"
+
+        for i in range(len(startIndexs)):
+            rain_start = recs[startIndexs[i]].split()
+            rain_end = recs[endIndexs[i] - 1].split()
+            sid = rain_start[0]
+            lat = int(rain_start[1])
+            lon = int(rain_start[2])
+            alt = int(rain_start[3])
+            # ymd = rain_start[4]
+            year = int(rain_start[5])
+            mon = int(rain_start[6])
+            day = int(rain_start[7])
+            rec = strfmt.format(
+                    sid, lat, lon, alt,
+                    year, mon,  day)
+
+            prec24 = 0
+            rain_last = endIndexs[i] - startIndexs[i]
+            for j in range(startIndexs[i],  endIndexs[i]):
+                prec24 = prec24 + int(recs[j].split()[10])
+
+            year = int(rain_end[5])
+            mon = int(rain_end[6])
+            day = int(rain_end[7])
+            rec2 = strfmt2.format(rec, year, mon, day, rain_last, prec24)
+
+            recs_events.append(rec2)
+
+        with open(targetPath, 'w') as fo:
+            fo.writelines(recs_events)
+        fo.close()
+
     def clearDirectory(self, targetRoot):
         if os.path.exists(targetRoot) and len(os.listdir(targetRoot)) > 0:
             print("\nThe dir of {0} is not empty and will been overrided."
@@ -214,6 +296,11 @@ class SurfDailyTool(ToolBase):
             return True
         else:
             return False
+
+
+def isRainday(rec):
+    items = rec.split()
+    return 1 if 0 < int(items[10]) < 1000 else 0
 
 
 if __name__ == "__main__":
