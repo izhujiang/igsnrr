@@ -1,0 +1,5 @@
+python gee_post.py build ../data/tiffs/6974
+python gee_post.py sr-org-6974 ../data/tiffs/6974
+
+python gee_post.py build ../data/tiffs/albers
+python gee_post.py albers ../data/tiffs/albers 105

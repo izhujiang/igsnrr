@@ -1,0 +1,5 @@
+pip install pandas
+pip install matplotlib
+
+// Working with Matplotlib on OSX, reference to
+https://matplotlib.org/faq/osx_framework.html
