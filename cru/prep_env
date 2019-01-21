@@ -1,0 +1,10 @@
+
+$ pip install pipenv
+
+cd target dir
+$ pipenv shell
+pip install numpy
+pip install Cython --install-option="--no-cython-compile"
+pip install cftime
+pip install netCDF4
+pip install scipy matplotlib 
