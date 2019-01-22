@@ -95,7 +95,12 @@ def CreateCruNetCDF(destPath, ele, isAve=False):
 
     # two dimensions unlimited
     vals = rootgrp.createVariable(ele, "f8",("time","lat","lon",), fill_value=9.96921E36)
-    vals.long_name = "potential evapotranspiration";
+    if ele == 'pet':
+        vals.long_name = "potential evapotranspiration";
+    elif ele == 'pre':
+        vals.long_name = "precipitation";
+    else:
+        pass
     vals.units = "mm/year";
     vals.correlation_decay_distance = -999.0; # float
     vals.missing_value = 9.96921E36; # float
