@@ -1,0 +1,8 @@
+1. install pipenv
+$ pip install pipenv
+
+2. active virtual python env
+$ pipenv shell
+
+3. install 3rd party package
+$ pipenv install numpy scipy matplotlib ipython jupyter pandas sympy nose
