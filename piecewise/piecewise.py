@@ -15,10 +15,10 @@ class D1Object:
 
     def valueAt(self, k):
         return self.c[k-1]
-    
+
     def toString(self):
         return ','.join(str(x) for x in self.c) # '0,3,5'
-        
+
 
 # index: [1, 1] - [N, M]
 class D2Object:
@@ -85,20 +85,20 @@ class PieceWise:
         if M == 1:
             X = self.t.reshape((N, 1))
             Y = self.y.reshape((N, 1))
-            
+
         else:
             x_data = np.empty(shape=(N,M))
             X = D2Object(x_data)
             # C = D1Object(np.concatenate( (self.t[0:1], c, self.t[-1:])))
-           
+
             cc = np.concatenate((np.array(c), self.t[-1:]), axis=0)
             # print(cc)
             C = D1Object( cc )
-    
+
             for i in range(1, N+1):
                 for j in range(1, M+1):
                     self.setVirtualXInteral(X, C, i, j)
-    
+
             # tt = self.t.reshape((N,1))
             yy = self.y.reshape((N, 1))
             data = np.concatenate((x_data, yy), axis=1)
@@ -106,7 +106,7 @@ class PieceWise:
             y_names = ["Y"]
             columns_hander = x_names + y_names
             df = pd.DataFrame(data,columns=columns_hander)
-    
+
             X = df[x_names]
             Y = df[y_names]
             # print(df)
@@ -144,7 +144,7 @@ class PieceWise:
                 v = i - C.valueAt(j - 1)
 
         X.setValueAt(i,j,v)
-       
+
 # -------- for test --------------------
 #data = datasets.load_boston()
 #medv = pd.DataFrame(data.target, columns=['MEDV'])
@@ -163,10 +163,10 @@ class PieceWise:
 figsize=(12,8)
 # rolling window size for smoothing, unit: day
 avg_window = 31
-# num of potential segment points 
+# num of potential segment points
 num_potential_points = 20
 # ----------------------------
-# explore ndvi data and find potential segment points 
+# explore ndvi data and find potential segment points
 df = pd.read_csv("/Users/jiangzhu/workspace/igsnrr/data/ndvi/ndvi_2004.txt", sep='\t')
 #df = pd.read_csv("/Users/jiangzhu/workspace/igsnrr/data/ndvi/ndvi_2004.txt", sep='\t', index_col=1)
 (cn_row, cn_col) = df.shape
@@ -195,13 +195,44 @@ print("potential points",nlargest_day)
 # print(df['NLG_GRD'])
 
 # plt.figure()
-df.plot(x='DOY', y=['NDVI_2004','NDVI_AVG','NDVI_GRD1', 'NDVI_GRD3','NLG_GRD'],figsize= figsize)
+# df.plot(x='DOY', y=['NDVI_2004','NDVI_AVG','NDVI_GRD1', 'NDVI_GRD3','NLG_GRD'],figsize= figsize)
 # df.plot.scatter(x='DOY', y='NLG_GRD',figsize= figsize)
 
-# 
+#
 t = df['DOY'].to_numpy()
 y = df['NDVI_2004'].to_numpy()
 
 # print(y, t, nlargest_day)
 pw = PieceWise(y, t, nlargest_day)
-pw.findSections()
+# pw.findSections()
+
+c = (109, 176, 261, 292) + (cn_row,)
+start = 0
+preds = np.empty((0, 3))
+for end in c:
+    X = t[start: end].reshape(-1, 1)
+    Y = y[start: end].reshape(-1, 1)
+    # print(X, Y)
+
+    lm = linear_model.LinearRegression()
+    lm.fit(X, Y)
+
+    # predictions = lm.predict(x_data)
+    score = lm.score(X,Y)
+    # print(score)
+    predictions = lm.predict(X)
+    #print(predictions)
+    #df['NDVI_PRED'][start-1: end] = predictions
+    block = np.concatenate((X, Y, predictions), axis=1)
+    #print(X)
+    #print(Y)
+    #print(block)
+    preds = np.append(preds, block, axis=0)
+    start= end
+
+
+preds_df = pd.DataFrame(preds,columns=['X', 'Y', 'NDVI_PRED'])
+#print(preds_df)
+
+df['NDVI_PRED'] = preds_df['NDVI_PRED']
+df.plot(x='DOY', y=['NDVI_2004','NDVI_AVG','NDVI_GRD1', 'NDVI_GRD3','NLG_GRD', 'NDVI_PRED'],figsize= figsize)
