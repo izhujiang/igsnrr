@@ -35,41 +35,65 @@ class D2Object:
     def setValueAt(self, i, j, v):
         self.x[i - 1, j -1] = v
 
-class PieceWise:
-    def __init__(self, y, t, pc, debug=False):
+class PieceWiseLinearRegression:
+    def __init__(self, t, y, potentialInflection, 
+                 debugLevel=1, 
+                 minSegmentCount=1, 
+                 maxSegmentCount=5, 
+                 maxFirstInflection = 151,
+                 minLastInflection = 273):
         self.y = y
         self.t = t
-        self.pc = pc
-        self._debug = debug
+        self.pc = potentialInflection
+        self._debug = debugLevel
+        self.minSegmentCount = minSegmentCount
+        self.maxSegmentCount = maxSegmentCount
+        self.maxFirstInflection = maxFirstInflection
+        self.minLastInflection = minLastInflection
+        
 
     def findSections(self):
         epsilon = CEOF_DIFF_EPSILON 
         threshold = CEOF_THRESHOLD
-        N = len(self.t)
+        # N = len(self.t)
         
         M = (len(self.pc) + 1)
-        r = [0] * M
-        c = [[]]* M
-        MAX_SEGMENTS_COUNT = M
+        r = [0] * M  # for storing max coef at M
+        c = [[]]* M  # for storing inflection points at M
+        ts = [0] * M # for storing time comsming at M
+        sc = M # for storing section count
+        
 
         r[0] = - math.inf
         t1 = datetime.now()
-        for M in range(1, MAX_SEGMENTS_COUNT): # M segments, c[1, ..., M-1]
+        
+        for M in range(self.minSegmentCount, self.maxSegmentCount + 1): # M segments, c[1, ..., M-1]
+            # print("current M segments: {0}".format(M))
             r[M], c[M] = self.MaxCorrcoef(M)
-            if self._debug:
-                t2 = datetime.now()
+            t2 = datetime.now()
+            ts[M] = (t2-t1).seconds
+            t2 = t1
+            sc = M
+            if self._debug > 0: # level 1 debug for time and max corrcoef at M segments.
                 print("-----------------------------------------")
-                print("for {0} pieces, time comsuming {1} secends:".format(M, (t2-t1).seconds))
+                print("for {0} pieces, time comsuming {1} secends:".format(M, ts[M] ))
                 print("max corrcoef {0} and breaks at {1}:".format(r[M], c[M]))
-                t2 = t1
             
-            # stop iterator by following condition
+            #stop iterator by following condition
             if r[M] > threshold:  # when max corrcoef is close to 1 (over threshold)
-                print("{0} piecewise  and split points:{1} with max corrcoef {2}. \n".format(M, c[M], r[M]))
-                return r[M], c[M]
+                if self._debug > 0:
+                    print("-----------------------------------------")
+                    print("{0} piecewise  and split points:{1} with max corrcoef {2}. \n".format(M, c[M], r[M]))
+                #return r[M], c[M]
+                break;
             if (r[M] - r[M -1]) < epsilon:# when corrcoef varies small enough during the iterate 
-                print("{0} piecewise  and split points:{1} with max corrcoef {2}. \n".format(M-1, c[M-1], r[M-1]))
-                return r[M-1], c[M-1]
+                if self._debug > 0:
+                    print("-----------------------------------------")
+                    print("{0} piecewise  and split points:{1} with max corrcoef {2}. \n".format(M-1, c[M-1], r[M-1]))
+                #return r[M-1], c[M-1]
+                sc = M - 1
+                break;
+        return r[sc], c[sc]
         
 
     def MaxCorrcoef(self, M):
@@ -78,19 +102,21 @@ class PieceWise:
 
         # cs = combinations(self.t[1:-1], M - 1)
         cs = combinations(self.pc, M - 1)
-        if self._debug:
-            print(cs)
+#        if self._debug:
+#            print(cs)
             
         max_c = None
         max_coef = -1
         for c in cs:
-            # print(c)
+            if M>=4 and (c[0] > self.maxFirstInflection or c[-1] < self.minLastInflection):
+                continue
+            
             coef = self.calculateCorrceof(c)
             if coef > max_coef:
                 max_coef = coef
                 max_c = c
-                if self._debug:
-                    print(c, coef, max_coef)
+                if self._debug > 1: # debug level 2 for print internal max coef at specific M
+                    print(c, coef)
 
         return max_coef, max_c
 
@@ -116,7 +142,8 @@ class PieceWise:
                     self.setVirtualXInteral(XX, CC, i, j)
 
             # tt = self.t.reshape((N,1))
-            yy = self.y.reshape((N, 1))
+            X = x_data
+            Y = self.y.reshape((N, 1))
             # data = np.concatenate((x_data, yy), axis=1)
 #            x_names = ["M"+str(i) for i in range(1,M+1)]
 #            y_names = ["Y"]
@@ -125,8 +152,7 @@ class PieceWise:
 
 #            X = df[x_names]
 #            Y = df[y_names]
-            Y = yy
-            X = x_data
+            
             # print(df)
 
         # print(X, Y)
@@ -163,37 +189,73 @@ class PieceWise:
 
         X.setValueAt(i,j,v)
 
-# -------- Helper functions --------------------
-def doCalc(df):
-    (cn_row, cn_col) = df.shape
+# -------- Helper functions and classes -------------------
+class Output:
+    def __init__(self, filepath):
+        self.fo = open(filepath, "w")
+    def print(self, msg):
+        print(msg)  # output to console
+        self.fo.writelines(["{0}\n".format(msg)])   # output to file
+    def flush(self):
+        self.fo.close()
+
+        
+        
+def doMovingAverages(df, rolling_win_size=31):    
     df['NDVI_5AVG'] = df['NDVI_2004'].rolling(window=5, center=True).mean()
     df['NDVI_11AVG'] = df['NDVI_2004'].rolling(window=11, center=True).mean()
-    df['NDVI_AVG'] = df['NDVI_2004'].rolling(window=ROLLING_WINDOW_SIZE, center=True).mean()
+    df['NDVI_AVG'] = df['NDVI_2004'].rolling(window=rolling_win_size, center=True).mean()
     
     ndvi_avg = df['NDVI_AVG'].to_numpy()
-    ndvi_avg_grd1 = np.abs(np.gradient(ndvi_avg)) * 20
+    ndvi_avg_grd1 = np.abs(np.gradient(ndvi_avg)) * 10
     #ndvi_avg_grd2 = np.gradient(ndvi_avg,2) * 40
+    ndvi_avg_grd2 = np.abs(np.gradient(np.gradient(ndvi_avg))) * 1000
     
-    ndvi_avg_grd2 = np.abs(np.gradient(np.gradient(ndvi_avg))) * 600
     df['NDVI_GRD1'] = ndvi_avg_grd1
     df['NDVI_GRD2'] = ndvi_avg_grd2
-    #df.plot(x='date', y=['NDVI_2004','EVI_2004','NDVI_5AV','NDVI_11AV','NDVI_15AV','NDVI_GRD1','NDVI_GRD2', 'NDVI_GRD3'], figsize=figsize)
-    nlargest_row = df.nlargest(NUM_POTENTIAL_SEGMENT_POINTS,'NDVI_GRD2')
+  
+    
+def doPieceWise(df, numPotentialInflection=30):
+    nlargest_row = df.nlargest(numPotentialInflection,'NDVI_GRD2')
     df['NLG_GRD'] = nlargest_row['NDVI_AVG']
     nlargest_day = np.sort(nlargest_row['DOY'].to_numpy())
-    print("---------------")
-    print("potential points",nlargest_day)
+    
+    if DEBUG_ENABLE:
+        print("-----------------------------------------")
+        print("potential inflection points",nlargest_day)
+    
     # print(df['NLG_GRD'])
     
     t = df['DOY'].to_numpy()
     y = df['NDVI_2004'].to_numpy()
     
-    # print(y, t, nlargest_day)
-    # pw = PieceWise(y, t, nlargest_day)
+    # print(t, y, nlargest_day)
+ 
     # setup debug=True in PieceWise constructor, if want to print debug info
-    pw = PieceWise(y, t, nlargest_day, debug=True)
-    max_coef, pc = pw.findSections()
-    c = pc + (cn_row,)
+    print(nlargest_day)
+    pwlr = PieceWiseLinearRegression(t, y, nlargest_day, debugLevel=0)
+    # cp - connected points with max coef.
+    max_coef, cp = pwlr.findSections()
+    return max_coef, cp
+
+def listPieceWiseByInflection(df, rolling_win_size, minNumPotentialInflection=5,  maxNumPotentialInflection=50, output=None):
+    t1 = datetime.now()
+    step = 2
+    
+    for numInf in range(minNumPotentialInflection, maxNumPotentialInflection, step):
+        max_coef, cp = doPieceWise(df, numInf)
+        if not output is None:
+            output.print("{0}\t{1}\t{2}\t{3}\t{4}".format(rolling_win_size, numInf, len(cp) + 1, max_coef, cp))
+    
+    t2 = datetime.now()
+    print("time comsuming for loop ({0},{1}:{2}): {3} seconds".format(minNumPotentialInflection, maxNumPotentialInflection, step, (t2-t1).seconds))
+        
+def doSeperateLinearRegression(df, cp):
+    (cn_row, cn_col) = df.shape
+    t = df['DOY'].to_numpy()
+    y = df['NDVI_2004'].to_numpy()
+    c = cp + (cn_row,)
+    
     start = 0
     preds = np.empty((1, 0))
     for end in c:
@@ -206,7 +268,8 @@ def doCalc(df):
         lm.fit(X, Y)
         
         # predictions = lm.predict(x_data)
-        score = lm.score(X,Y)
+        #score = lm.score(X,Y)
+        lm.score(X,Y)
         # print(score)
         predictions = lm.predict(X)
         #print(predictions)
@@ -217,13 +280,14 @@ def doCalc(df):
         #print(block)
         preds = np.append(preds, predictions)
         start= end
+        # start= end -1  # sorry to disconnect inflaction because of preds = np.append(preds, predictions)
         
     #preds_df = pd.DataFrame(preds,columns=['X', 'Y', 'NDVI_PRED'])
     # print(preds, preds.size)
     df['NDVI_PRED'] = preds
     
     
-def display(df):
+def doDisplay(df):
     # Plot outputs
     (cn_row, cn_col) = df.shape
     x = df['DOY']
@@ -299,19 +363,34 @@ def display(df):
 #
 # the sie of figure, unit: inch
 FIG_SIZE=(16,12)
-# rolling window size for smoothing, unit: day
-ROLLING_WINDOW_SIZE = 31
-# num of potential segment points 
-NUM_POTENTIAL_SEGMENT_POINTS = 30
 
 # threshold for stop calculating Corrceof
-CEOF_THRESHOLD = 0.98
-CEOF_DIFF_EPSILON = 0.001
+CEOF_THRESHOLD = 0.99
+CEOF_DIFF_EPSILON = 0.0001
+
+DISPLAY_ENABLE = False
+SHOWALLINFLECTION = True
+
+DEBUG_ENABLE = False
+
 
 # ----------------------------
 # explore ndvi data and find potential segment points 
 df = pd.read_csv("/Users/jiangzhu/workspace/igsnrr/data/ndvi/ndvi_2004.txt", sep='\t')
 #df = pd.read_csv("/Users/jiangzhu/workspace/igsnrr/data/ndvi/ndvi_2004.txt", sep='\t', index_col=1)
 
-doCalc(df)
-display(df)
+rolling_win_size = 31
+
+if SHOWALLINFLECTION:
+    now = datetime.now()
+    log = Output("./coef_" + now.strftime("%Y%m%d%H%M%S") + ".log")
+    for rolling_win_size in range(15, 16, 1):
+        doMovingAverages(df, rolling_win_size)
+        listPieceWiseByInflection(df, rolling_win_size, minNumPotentialInflection=5,  maxNumPotentialInflection=50, output=log)
+    log.flush()
+else:
+    doMovingAverages(df, rolling_win_size)
+    max_coef, cp = doPieceWise(df)
+    if DISPLAY_ENABLE:
+        doSeperateLinearRegression(df, cp)
+        doDisplay(df)
