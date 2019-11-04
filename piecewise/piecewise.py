@@ -242,7 +242,7 @@ def listPieceWiseByInflection(df, rolling_win_size, minNumPotentialInflection=5,
     t1 = datetime.now()
     step = 2
     
-    for numInf in range(minNumPotentialInflection, maxNumPotentialInflection, step):
+    for numInf in range(minNumPotentialInflection, maxNumPotentialInflection+1, step):
         max_coef, cp = doPieceWise(df, numInf)
         if not output is None:
             output.print("{0}\t{1}\t{2}\t{3}\t{4}".format(rolling_win_size, numInf, len(cp) + 1, max_coef, cp))
@@ -384,7 +384,7 @@ rolling_win_size = 31
 if SHOWALLINFLECTION:
     now = datetime.now()
     log = Output("./coef_" + now.strftime("%Y%m%d%H%M%S") + ".log")
-    for rolling_win_size in range(15, 16, 1):
+    for rolling_win_size in range(5, 32, 2):
         doMovingAverages(df, rolling_win_size)
         listPieceWiseByInflection(df, rolling_win_size, minNumPotentialInflection=5,  maxNumPotentialInflection=50, output=log)
     log.flush()
