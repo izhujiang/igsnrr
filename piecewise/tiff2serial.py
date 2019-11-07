@@ -32,6 +32,7 @@ class FormatConvertor:
             theDay = date(self.year, self.mon, self.day)
             firstDayOfYear = date(self.year, 1, 1)
             doy = (theDay - firstDayOfYear).days + 1
+            scale  = 10000.0
 
             for i in range(height):
                 rowDir = os.path.join(yearDestDir, "{0:0>4}".format(i))
@@ -39,9 +40,9 @@ class FormatConvertor:
                     os.makedirs(rowDir, exist_ok=True)
 
                 for j in range(width):
-                    lon,lat = dataset.transform * (i, j)
-                    ndvi = rawData[0][i][j] / 10000.0
-                    evi = rawData[1][i][j]  / 10000.0
+                    lon,lat = dataset.transform * (j, i)
+                    ndvi = rawData[0][i][j] / scale
+                    evi = rawData[1][i][j]  / scale
                     if not (ndvi == 0 and evi ==0):
                         self.outputRecord(theDay, doy, i, j, lon, lat,  ndvi, evi)
                     # prin(lon, lat,rawData[0][i][j], rawData[1][i][j])
