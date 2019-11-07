@@ -87,4 +87,3 @@ fc = FormatConvertor()
 inputDir = '/Users/jiangzhu/workspace/igsnrr/data/ndvi/samples'
 outputDir = '/Users/jiangzhu/workspace/igsnrr/data/ndvi/serials'
 fc.batchTiff2Serials(inputDir, outputDir)
-
