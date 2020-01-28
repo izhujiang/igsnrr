@@ -9,6 +9,10 @@ import arcpy
 
 def BatchExtractValuesToPoints(Input_Landsat_dir, gdb, src_featureClass, outputTable_dir):
     PATTERN = re.compile(r'^[0-9a-zA-Z]*_[0-9a-zA-Z]*_(\d*)_(\d*)\w*\.tif$')
+
+    if not os.path.exists(outputTable_dir):
+        os.makedirs(outputTable_dir)
+
     YEARS_DIR = os.listdir(Input_Landsat_dir)
     for year_dir in YEARS_DIR:
         year_path = os.path.join(Input_Landsat_dir, year_dir)
@@ -35,9 +39,9 @@ def BatchExtractValuesToPoints(Input_Landsat_dir, gdb, src_featureClass, outputT
             
             # Local variables:
             
-            Zjt_org = gdb + "\\" + src_featureClass
+            Zjt_org = gdb + "/" + src_featureClass
             featureClasses =  src_featureClass + "_" + str(year_dir)
-            inPointFeatures = gdb +  "\\" + featureClasses
+            inPointFeatures = gdb +  "/" + featureClasses
             
             # Process: Copy
             arcpy.Copy_management(Zjt_org, inPointFeatures, "FeatureClass")
@@ -51,7 +55,7 @@ def BatchExtractValuesToPoints(Input_Landsat_dir, gdb, src_featureClass, outputT
             #  arcpy.TableToDBASE_conversion( inPointFeatures, output_dir)
             
             # Local variables:
-            # Zjt_1995 = "C:\\ignrr\\data\\LT05\\Zjt.gdb\\Zjt_1995"
+            # Zjt_1995 = "C:/ignrr/data/LT05/Zjt.gdb/Zjt_1995"
             # print("outputTableDir:" + outputTable_dir)
             zjt_xls = os.path.join(outputTable_dir, featureClasses + ".xls")
             # print(zjt_xls)
@@ -63,18 +67,17 @@ def BatchExtractValuesToPoints(Input_Landsat_dir, gdb, src_featureClass, outputT
 # Check out the ArcGIS Spatial Analyst extension license
 arcpy.CheckOutExtension("Spatial")
 # GDB, where featureClasses are stored. 
-zjt_gdb = "C:\\ignrr\\data\\LT05\\Zjt.gdb"
-arcpy.env.workspace = zjt_gdb
-outputTable_dir = "C:\\ignrr\\data\\LT05\\tables" 
 
-if not os.path.exists(outputTable_dir):
-    os.makedirs(outputTable_dir)
+# change here: gdb for input features , input dir for landsat files,  and output dir for tables
+zjt_gdb = "C:/ignrr/data/LT05/Zjt.gdb"
+arcpy.env.workspace = zjt_gdb
 
 zjt_featureClass = "Zjt"
-landsat_dir = "C:\\ignrr\\data\\LT05\\ndvi" 
-
+landsat_dir = "C:/ignrr/data/LT05/ndvi" 
+outputTable_dir = "C:/ignrr/data/LT05/tables" 
 BatchExtractValuesToPoints(landsat_dir, zjt_gdb, zjt_featureClass, outputTable_dir)
 
-landsat_dir = "C:\\ignrr\\data\\LT05\\qa"
+landsat_dir = "C:/ignrr/data/LT05/qa"
 zjt_featureClass = "Zjt_QA"
+outputTable_dir = "C:/ignrr/data/LT05/tables-qa" 
 BatchExtractValuesToPoints(landsat_dir, zjt_gdb, zjt_featureClass, outputTable_dir)
