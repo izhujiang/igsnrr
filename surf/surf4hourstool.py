@@ -12,7 +12,7 @@ from datetime import date
 from datetime import timedelta, datetime
 import pandas as pd
 
-from igsnrr.base.toolbase import ToolBase
+from ..base.toolbase import ToolBase
 
 
 class Surf4HoursTool(ToolBase):
@@ -26,18 +26,18 @@ class Surf4HoursTool(ToolBase):
         self._version = "surf4hourstool.py 0.0.1"
 
     def defineArgumentParser(self, parser):
-        parser.add_argument("source", action="store",
-                            help="root dir for source files")
+        # parser.add_argument("source", action="store",
+                            # help="root dir for source files")
         parser.add_argument("target", action="store",
-                            help="root dir for target files")
+                            help="root dir for all data")
 
     def run(self, args):
-        srcRoot = args.source
+        # srcRoot = args.source
         targetRoot = args.target
-        print(srcRoot, "-->", targetRoot)
+        # print(srcRoot, "-->", targetRoot)
 
         bystationDir = os.path.join(targetRoot, "bystation")
-        self.batchConvert(srcRoot, bystationDir)
+        # self.batchConvert(srcRoot, bystationDir)
 
         # 08-08, qixiang
         subdir = "qx0808"
@@ -45,6 +45,7 @@ class Surf4HoursTool(ToolBase):
         monthlyDir = os.path.join(targetRoot, subdir, "monthly0808")
         yearDir = os.path.join(targetRoot, subdir, "year0808")
 
+        print("statistics qx0808")
         self.statisticsDaily(bystationDir, dailyDir, "0808")
         self.statisticsMonthly(dailyDir, monthlyDir)
         self.statisticsYears(monthlyDir, yearDir)
@@ -55,6 +56,7 @@ class Surf4HoursTool(ToolBase):
         monthlyDir = os.path.join(targetRoot, subdir, "monthly2020")
         yearDir = os.path.join(targetRoot, subdir, "year2020")
 
+        print("statistics qx2020")
         self.statisticsDaily(bystationDir, dailyDir, "2020")
         self.statisticsMonthly(dailyDir, monthlyDir)
         self.statisticsYears(monthlyDir, yearDir)
@@ -65,121 +67,125 @@ class Surf4HoursTool(ToolBase):
         monthlyDir = os.path.join(targetRoot, subdir, "monthly0808")
         yearDir = os.path.join(targetRoot, subdir, "year0808")
 
+        print("statistics sl0808")
         self.statisticsDaily(bystationDir, dailyDir, "0832")
         self.statisticsMonthly(dailyDir, monthlyDir)
         self.statisticsYears(monthlyDir, yearDir)
 
-    def batchConvert(self, srcPathRoot, targetPathRoot):
-        self.clearDirectory(targetPathRoot)
-        filelist = sorted(os.listdir(srcPathRoot))
+    # def batchConvert(self, srcPathRoot, targetPathRoot):
+    #     self.clearDirectory(targetPathRoot)
+    #     filelist = sorted(os.listdir(srcPathRoot))
 
-        for item in filelist:
-            srcPath = os.path.join(srcPathRoot, item)
-            print(srcPath)
-            self.convert(srcPath, targetPathRoot)
+    #     for item in filelist:
+    #         srcPath = os.path.join(srcPathRoot, item)
+    #         print(srcPath)
+    #         self.convert(srcPath, targetPathRoot)
 
-        self.insertHeader(targetPathRoot)
+    #     self.insertHeader(targetPathRoot)
 
-    def convert(self, srcPath, targetRoot):
-        if not os.path.exists(srcPath):
-            self._loggej.info("Failed: {0} does't existe".format(srcPath))
+    # def convert(self, srcPath, targetRoot):
+    #     if not os.path.exists(srcPath):
+    #         self._loggej.info("Failed: {0} does't existe".format(srcPath))
 
-        filename = os.path.basename(srcPath)
-        year = int(filename[:4])
-        mon = int(filename[4:6])
-        day = int(filename[6:8])
+    #     filename = os.path.basename(srcPath)
+    #     year = int(filename[:4])
+    #     mon = int(filename[4:6])
+    #     day = int(filename[6:8])
 
-        recs = []
-        with open(srcPath) as f:
-            recs = f.readlines()
-            recs = recs[2:]
-        f.close()
+    #     recs = []
+    #     with open(srcPath) as f:
+    #         recs = f.readlines()
+    #         recs = recs[1:]
+    #     f.close()
 
-        group = {}
-        strfmt = ("{0:>8}{1:>6d}{2:0>2d}{3:0>2d}{4:0>2d}"
-                  "{1:>6d}{2:>4d}{3:>4d}{4:>4d}"
-                  "{5:>12.1f}{6:>12.1f}{7:>12.1f}\n")
-        for rec in recs:
-            items = rec.split()
-            if items[0] not in group:
-                group[items[0]] = []
+    #     group = {}
+    #     strfmt = ("{0:>8}{1:>6d}{2:0>2d}{3:0>2d}{4:0>2d}"
+    #               "{1:>6d}{2:>4d}{3:>4d}{4:>4d}"
+    #               "{5:>12.1f}{6:>12.1f}{7:>12.1f}\n")
+    #     for rec in recs:
+    #         items = rec.split(",")
+    #         if items[0] not in group:
+    #             group[items[0]] = []
 
-            if items[7] == "999990":
-                items[7] == "0"
-            rec = strfmt.format(items[0], int(items[1]), int(items[2]),
-                                int(items[3]), int(items[4]), float(items[5]),
-                                float(items[6]), float(items[7]))
-            group[items[0]].append(rec)
+    #         if items[7] == "999990":
+    #             items[7] == "0"
+    #         rec = strfmt.format(items[0], int(items[1]), int(items[2]),
+    #                             int(items[3]), int(items[4]), float(items[5]),
+    #                             float(items[6]), float(items[7]))
+    #         group[items[0]].append(rec)
 
-        for k, v in group.items():
-            target = os.path.join(targetRoot, k)
+    #     for k, v in group.items():
+    #         target = os.path.join(targetRoot, k)
 
-            recs_w = [
-                    strfmt.format(k, year, mon, day, i, 999999, 999999, 999999)
-                    for i in range(24)]
+    #         recs_w = [
+    #                 strfmt.format(k, year, mon, day, i, 999999, 999999, 999999)
+    #                 for i in range(24)]
 
-            for line in v:
-                items = line.split()
-                recs_w[int(items[5])] = line
+    #         for line in v:
+    #             items = line.split()
+    #             # try:
+    #             recs_w[int(items[5])] = line
+    #             # except:
+    #                 # print("An exception occurred", line, items)
 
-            with open(target, 'a') as fo:
-                fo.writelines(recs_w)
-            fo.close()
+    #         with open(target, 'a') as fo:
+    #             fo.writelines(recs_w)
+    #         fo.close()
 
-    def insertHeader(self, parentDir):
-        header = ("{0:>8}{1:>12}{2:>6}{3:>4}{4:>4}{5:>4}"
-                  "{6:>12}{7:>12}{8:>12}\n").format("SID", "DATETIME", "YEAR",
-                                                    "MON", "DAY", "HR",
-                                                    "PRES", "TEMP", "PREC")
-        filelist = sorted(os.listdir(parentDir))
-        for item in filelist:
-            with open(os.path.join(parentDir, item), 'r+') as fo:
-                recs = fo.readlines()
-                sample = recs[0].split()
-                sid = sample[0]
-                year = int(sample[2])
-                mon = int(sample[3])
-                day = int(sample[4])
+    # def insertHeader(self, parentDir):
+    #     header = ("{0:>8}{1:>12}{2:>6}{3:>4}{4:>4}{5:>4}"
+    #               "{6:>12}{7:>12}{8:>12}\n").format("SID", "DATETIME", "YEAR",
+    #                                                 "MON", "DAY", "HR",
+    #                                                 "PRES", "TEMP", "PREC")
+    #     filelist = sorted(os.listdir(parentDir))
+    #     print(filelist)
+    #     for item in filelist:
+    #         with open(os.path.join(parentDir, item), 'r+') as fo:
+    #             recs = fo.readlines()
+    #             sample = recs[0].split()
+    #             sid = sample[0]
+    #             year = int(sample[2])
+    #             mon = int(sample[3])
+    #             day = int(sample[4])
 
-                today = date(year, mon, day)
-                nextday = today
-                fo.seek(0)
-                fo.write(header)
+    #             today = date(year, mon, day)
+    #             nextday = today
+    #             fo.seek(0)
+    #             fo.write(header)
 
-                index = 0
-                last_rec = len(recs) - 1
-                while index < last_rec:
-                    if nextday == today:
-                        fo.writelines(recs[index: index+24])
-                        index = index + 24
-                        if index > last_rec:
-                            break
+    #             index = 0
+    #             last_rec = len(recs) - 1
+    #             while index < last_rec:
+    #                 if nextday == today:
+    #                     fo.writelines(recs[index: index+24])
+    #                     index = index + 24
+    #                     if index > last_rec:
+    #                         break
 
-                        sample = recs[index].split()
-                        sid = sample[0]
-                        year = int(sample[2])
-                        mon = int(sample[3])
-                        day = int(sample[4])
+    #                     sample = recs[index].split()
+    #                     sid = sample[0]
+    #                     year = int(sample[2])
+    #                     mon = int(sample[3])
+    #                     day = int(sample[4])
 
-                        nextday = date(year, mon, day)
-                    else:
-                        strfmt = (
-                                "{0:>8}{1:>6d}{2:0>2d}{3:0>2d}{4:0>2d}"
-                                "{1:>6d}{2:>4d}{3:>4d}{4:>4d}"
-                                "{5:>12.1f}{6:>12.1f}{7:>12.1f}\n")
-                        year = today.year
-                        mon = today.month
-                        day = today.day
+    #                     nextday = date(year, mon, day)
+    #                 else:
+    #                     strfmt = (
+    #                             "{0:>8}{1:>6d}{2:0>2d}{3:0>2d}{4:0>2d}"
+    #                             "{1:>6d}{2:>4d}{3:>4d}{4:>4d}"
+    #                             "{5:>12.1f}{6:>12.1f}{7:>12.1f}\n")
+    #                     year = today.year
+    #                     mon = today.month
+    #                     day = today.day
 
-                        recs_empty = [
-                                strfmt.format(
-                                    sid, year, mon, day, i,
-                                    999999, 999999, 999999) for i in range(24)]
-                        fo.writelines(recs_empty)
-
-                    today = today + timedelta(days=1)
-                fo.flush()
-            fo.close()
+    #                     recs_empty = [
+    #                             strfmt.format(
+    #                                 sid, year, mon, day, i,
+    #                                 999999, 999999, 999999) for i in range(24)]
+    #                     fo.writelines(recs_emt
+    #                 today = today + timedelta(days=1)
+    #             fo.flush()
+    #         fo.close()
 
     def statisticsDaily(self, srcPathRoot, targetPathRoot, stat_win):
         self.clearDirectory(targetPathRoot)
@@ -528,7 +534,7 @@ if __name__ == "__main__":
     tool = Surf4HoursTool()
     import argparse
     from ..base.logger import Logger
-    parser = argparse.ArgumentParser(prog="python.exe3 -m surf4hourstool",
+    parser = argparse.ArgumentParser(prog="python -m surf4hourstool",
                                      description="Surf4HoursTool Usage Guide",
                                      prefix_chars="-+")
 
@@ -542,12 +548,8 @@ if __name__ == "__main__":
     logger = Logger("./log/d2s.log")
     tool.attachLogger(logger)
 
-    srcRoot = args.source
     targetRoot = args.target
 
-    readme = srcRoot + "/readme.txt"
-    if os.path.exists(readme):
-        os.remove(readme)
     tool.run(args)
 
 else:
