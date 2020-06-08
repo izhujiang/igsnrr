@@ -7,8 +7,9 @@ from enum import Enum
 import argparse
 import json
 from datetime import datetime, timedelta
+import mkt
 
-AnalysisMethood = Enum('Mothod', ('OLS', 'MANKENDALL'))
+AnalysisMethood = Enum('Mothod', ('OLS', 'MANKENDALL', 'UNKNOWN'))
 
 # calc whole grid
 def analyzeGrid(fInput, opts, outputDir, fOutputPrefix, method):
@@ -22,7 +23,7 @@ def analyzeGrid(fInput, opts, outputDir, fOutputPrefix, method):
         x = range(2000, 2000 + zlen)
 
         # fill the buf for storing analysis result
-        bands_data, bands_desc = initResultStorage(AnalysisMethood.OLS, (height, width), dt_in.nodata)
+        bands_data, bands_desc = initResultStorage(method, (height, width), dt_in.nodata)
         profile.update({
                 # 'count': len(bands_data),
                 'count': 1,
@@ -65,11 +66,6 @@ def analyzeGrid(fInput, opts, outputDir, fOutputPrefix, method):
             fo.writelines([json_string])
         fo.flush()
 
-def isNodata(arr, nodata):
-    for _,v in enumerate(arr):
-        if v == nodata:
-            return True
-    return False
 
 # init buffer for storing analysis result
 def initResultStorage(method, shape, nodata ):
@@ -97,7 +93,18 @@ def initResultStorage(method, shape, nodata ):
             't1': "tValue t1",
        }
     elif method == AnalysisMethood.MANKENDALL:
-        print("man-kendall not implemented yet")
+        bands_data = {
+            'ha': np.full(shape, nodata, np.float32),
+            'm': np.full(shape, nodata, np.float32),
+            'c': np.full(shape, nodata, np.float32),
+            'p': np.full(shape, nodata, np.float32),
+        }
+        bands_desc = {
+            'ha': "result of the statistical test indicating whether or not to accept hte alternative hypothesis ‘Ha’",
+            'm': "slope of the linear fit",
+            'c': "intercept of the linear fit",
+            'p': "p-value of the obtained Z-score statistic",
+       }
     else:
         print("unknown analysis method")
     return bands_data, bands_desc
@@ -122,7 +129,21 @@ def analyzeSinglePoint(x, y, method):
         }
         # print(res)
     elif method == AnalysisMethood.MANKENDALL:
-        print("man-kendall not implemented yet")
+        # get the slope, intercept and pvalues from the mklt module
+        ALPHA = 0.01
+        MK, m, c, p = mkt.test(x, y, eps=1E-3, alpha=ALPHA, Ha="upordown")
+
+        ha = 1
+        if MK.startswith('rej'):
+            ha = 0
+        # ha = not MK.startswith('reject')
+
+        res = {
+            'ha':ha,
+            'm': m,
+            'c': c,
+            'p': p,
+        }
     else:
         print("unknown analysis method")
 
@@ -133,13 +154,16 @@ debugSinglePoint = False
 
 if debugSinglePoint == True: # for debug in single point
     # for debug sinle point
-    x = range(2000, 2020)
-    y = [1447, 1580, 2037, 1779.9266, 1398.0007, 1614.4379, 1493.4379,
+    x = np.array(list(range(2000, 2020)))
+    y = np.array([1447, 1580, 2037, 1779.9266, 1398.0007, 1614.4379, 1493.4379,
             1580, 1613, 1728.7712, 1630.695, 1516.4379, 1775.1046, 1434.4379,
-            1383.695, 1720.7784, 1664, 1578.9172, 1711.4103, 1691]
-    analyzeSinglePoint(x, y)
+            1383.695, 1720.7784, 1664, 1578.9172, 1711.4103, 1691])
+    # analyzeSinglePoint(x, y, AnalysisMethood.OLS)
+    analyzeSinglePoint(x, y, AnalysisMethood.MANKENDALL)
 else:
     parser = argparse.ArgumentParser(description="Analysis program for mod13q1 in geotiff format")
+    parser.add_argument("method",
+                        help="method(OLS, MANKENDALL) for analyze modis13q1 data")
     parser.add_argument("src",
                         help="input geotiff file for analysis")
     parser.add_argument("top", type=int,
@@ -170,4 +194,11 @@ else:
     # fOutput = os.path.join(outputDir, 'MOD13Q1-MEDIAN-ana.tif')
     fOutputPrefix = "MOD13Q1-MEDIAN-ana_"
 
-    analyzeGrid(fInput, args, outputDir, fOutputPrefix, AnalysisMethood.OLS)
+    method = AnalysisMethood.UNKNOWN
+    if args.method == "OLS":
+        method = AnalysisMethood.OLS
+    elif args.method == "MANKENDALL":
+        method = AnalysisMethood.MANKENDALL
+    else:
+        method = AnalysisMethood.UNKNOWN
+    analyzeGrid(fInput, args, outputDir, fOutputPrefix, method)
