@@ -9,7 +9,7 @@ import json
 from datetime import datetime, timedelta
 import mkt
 
-AnalysisMethood = Enum('Mothod', ('OLS', 'MANKENDALL', 'UNKNOWN'))
+AnalysisMethood = Enum('Mothod', ('OLS', 'MANNKENDALL', 'UNKNOWN'))
 
 # calc whole grid
 def analyzeGrid(fInput, opts, outputDir, fOutputPrefix, method):
@@ -36,6 +36,8 @@ def analyzeGrid(fInput, opts, outputDir, fOutputPrefix, method):
             # for j in range(int(width/2-100), int(width/2)):
         t1 = datetime.now()
         for i in range(args.top, args.bottom):
+            if i % 50 == 0:
+                print("processing line :", i)
             for j in range(args.left, args.right):
                 y = ndvi_arr[:, i, j]
                 if not np.isnan(np.min(y)):
@@ -51,6 +53,7 @@ def analyzeGrid(fInput, opts, outputDir, fOutputPrefix, method):
         t2 = datetime.now()
         print("analyzing {0} line takes {1} seconds.\n".format((args.bottom - args.top),(t2-t1).seconds))
 
+    # output analysis result into multiple tiff files
     for (k, vArray) in  bands_data.items():
         fOutput = os.path.join(outputDir, fOutputPrefix + k + ".tiff")
         with rasterio.open( fOutput, 'w', **profile) as dt_out:
@@ -59,12 +62,14 @@ def analyzeGrid(fInput, opts, outputDir, fOutputPrefix, method):
                 # dt_out.set_band_description(layerIndex, bands_desc[k])
                 # layerIndex += 1
 
-    flog = os.path.join(outputDir, 'debug_info.txt')
-    with open(flog, 'w') as fo:
-        for rec in debug_infos:
-            json_string = json.dumps(rec) + "\n"
-            fo.writelines([json_string])
-        fo.flush()
+    # write debug info into txt file
+    if args.debug:
+        flog = os.path.join(outputDir, 'debug_info.txt')
+        with open(flog, 'w') as fo:
+            for rec in debug_infos:
+                json_string = json.dumps(rec) + "\n"
+                fo.writelines([json_string])
+            fo.flush()
 
 
 # init buffer for storing analysis result
@@ -75,7 +80,7 @@ def initResultStorage(method, shape, nodata ):
         bands_data = {
             'b0': np.full(shape, nodata, np.float32),
             'b1': np.full(shape, nodata, np.float32),
-            'rsquared': np.full(shape, nodata, np.float32),
+            'r2': np.full(shape, nodata, np.float32),
             'p0': np.full(shape, nodata, np.float32),
             'p1': np.full(shape, nodata, np.float32),
             'f': np.full(shape, nodata, np.float32),
@@ -85,21 +90,23 @@ def initResultStorage(method, shape, nodata ):
         bands_desc = {
             'b0': "coef b0",
             'b1': "coef b1",
-            'rsquared': "R-squared",
+            'r2': "R-squared",
             'p0': "P>|t| (P0)",
             'p1': "P>|t| (P1)",
             'f': "F-statistic",
             't0': "tValue t0",
             't1': "tValue t1",
        }
-    elif method == AnalysisMethood.MANKENDALL:
+    elif method == AnalysisMethood.MANNKENDALL:
         bands_data = {
+            'zmk': np.full(shape, nodata, np.float32),
             'ha': np.full(shape, nodata, np.float32),
             'm': np.full(shape, nodata, np.float32),
             'c': np.full(shape, nodata, np.float32),
             'p': np.full(shape, nodata, np.float32),
         }
         bands_desc = {
+            'zmk': "the Z-score based on above estimated mean and variance",
             'ha': "result of the statistical test indicating whether or not to accept hte alternative hypothesis ‘Ha’",
             'm': "slope of the linear fit",
             'c': "intercept of the linear fit",
@@ -120,7 +127,7 @@ def analyzeSinglePoint(x, y, method):
         res = {
             'b0': results.params[0],
             'b1': results.params[1],
-            'rsquared': results.rsquared,
+            'r2': results.rsquared,
             'p0': results.pvalues[0],
             'p1': results.pvalues[1],
             'f': results.fvalue,
@@ -128,10 +135,10 @@ def analyzeSinglePoint(x, y, method):
             't1': results.tvalues[1],
         }
         # print(res)
-    elif method == AnalysisMethood.MANKENDALL:
+    elif method == AnalysisMethood.MANNKENDALL:
         # get the slope, intercept and pvalues from the mklt module
         ALPHA = 0.01
-        MK, m, c, p = mkt.test(x, y, eps=1E-3, alpha=ALPHA, Ha="upordown")
+        Zmk, MK, m, c, p = mkt.test(x, y, eps=1E-3, alpha=ALPHA, Ha="upordown")
 
         ha = 1
         if MK.startswith('rej'):
@@ -139,6 +146,7 @@ def analyzeSinglePoint(x, y, method):
         # ha = not MK.startswith('reject')
 
         res = {
+            'zmk': Zmk,
             'ha':ha,
             'm': m,
             'c': c,
@@ -159,11 +167,11 @@ if debugSinglePoint == True: # for debug in single point
             1580, 1613, 1728.7712, 1630.695, 1516.4379, 1775.1046, 1434.4379,
             1383.695, 1720.7784, 1664, 1578.9172, 1711.4103, 1691])
     # analyzeSinglePoint(x, y, AnalysisMethood.OLS)
-    analyzeSinglePoint(x, y, AnalysisMethood.MANKENDALL)
+    analyzeSinglePoint(x, y, AnalysisMethood.MANNKENDALL)
 else:
     parser = argparse.ArgumentParser(description="Analysis program for mod13q1 in geotiff format")
     parser.add_argument("method",
-                        help="method(OLS, MANKENDALL) for analyze modis13q1 data")
+                        help="method(OLS, MANNKENDALL) for analyze modis13q1 data")
     parser.add_argument("src",
                         help="input geotiff file for analysis")
     parser.add_argument("top", type=int,
@@ -197,8 +205,8 @@ else:
     method = AnalysisMethood.UNKNOWN
     if args.method == "OLS":
         method = AnalysisMethood.OLS
-    elif args.method == "MANKENDALL":
-        method = AnalysisMethood.MANKENDALL
+    elif args.method == "MANNKENDALL":
+        method = AnalysisMethood.MANNKENDALL
     else:
         method = AnalysisMethood.UNKNOWN
     analyzeGrid(fInput, args, outputDir, fOutputPrefix, method)

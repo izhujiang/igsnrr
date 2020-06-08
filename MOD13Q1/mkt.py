@@ -2,7 +2,7 @@ r"""
 Python module to compute the Mann-Kendall test for trend in time series data.
 
 This module contains a single function 'test' which implements the Mann-Kendall
-test for a linear trend in a given time series. 
+test for a linear trend in a given time series.
 
 Introduction to the Mann-Kendall test
 -------------------------------------
@@ -21,7 +21,7 @@ analysis.
 Assumptions underlying the Mann-Kendall test
 --------------------------------------------
 
-The Mann-Kendall test involves the following assumptions [2]_ regarding the 
+The Mann-Kendall test involves the following assumptions [2]_ regarding the
 given time series data:
 
     1. In the absence of a trend, the data are independently and identically
@@ -48,7 +48,7 @@ The Mann-Kendall test provides the following advantages:
 
     3. It is not effected by irregular spacing of the time points of
     measurement.
-    
+
     4. It is not effected by the length of the time series.
 
 Limitations of the Mann-Kendall test
@@ -62,7 +62,7 @@ The following limitations have to be kept in mind:
 
     2. The Mann-Kendall test tends to give more negative results for shorter
     datasets, i.e., the longer the time series the more effective is the trend
-    detection computation. 
+    detection computation.
 
 Formulae
 --------
@@ -73,7 +73,7 @@ The first step in the Mann-Kendall test for a time series :math:`x_1, x_2,
 
     .. math::
 
-        sgn(x_i - x_j) &= 
+        sgn(x_i - x_j) &=
             \begin{cases}
                             1,  & x_i - x_j > 0\\
                             0,  & x_i - x_j = 0\\
@@ -112,7 +112,7 @@ approximately normally:
 
     .. math::
 
-        Z_{MK} &= 
+        Z_{MK} &=
             \begin{cases}
                             \frac{E[S] - 1} {\sqrt{VAR(S)}},  & E[S] > 0\\
                             0,  & E[S] = 0\\
@@ -124,7 +124,7 @@ Hypothesis testing
 ------------------
 
 At a significance level :math:`\alpha` of the test, which is also the Type I
-error rate, we compute whether or not to accept the alternative hypothesis 
+error rate, we compute whether or not to accept the alternative hypothesis
 :math:`H_a` for each variant of :math:`H_a` separately:
 
     :math:`H_a`: There exists an upward monotonic trend
@@ -148,7 +148,7 @@ whether the difference between two measurements is greater than, equal to, or
 less than zero. This idea is in turn critically linked to the least count
 (i.e., the minimum possible measurement value) of the time series measurements
 :math:`x_i`. For example, let us consider the case when we measure :math:`x_i`
-with a precision :math:`\varepsilon = 0.01`. In such a case, let us say for 
+with a precision :math:`\varepsilon = 0.01`. In such a case, let us say for
 some reason, floating point errors in the entries of :math:`x_i` in the
 memory, lead to a :math:`x_{11} - x_{27} = 0.000251 > 0`. However, to say that
 this difference is actually greater than zero is meaningless! This is because
@@ -162,7 +162,7 @@ This allows us to revise the above formulae fo rthe Mann-Kendall test as:
 
     .. math::
 
-        sgn(x_i - x_j) &= 
+        sgn(x_i - x_j) &=
             \begin{cases}
                             1,  & x_i - x_j > \varepsilon\\
                             0,  & |x_i - x_j| \leq \varepsilon\\
@@ -173,7 +173,7 @@ and:
 
     .. math::
 
-        Z_{MK} &= 
+        Z_{MK} &=
             \begin{cases}
                             \frac{E[S] - 1} {\sqrt{VAR(S)}},  & E[S] >
                             \varepsilon\\
@@ -207,7 +207,7 @@ where r_{x,t} is the Pearson's cross-correlation coefficient between
 :math:`x` and :math:`t`.
 
     .. math::
-        
+
         c = \mu_x - m \mu_t
 
 where :math:`\mu` denotes the mean of the both variables respectively.
@@ -215,7 +215,7 @@ where :math:`\mu` denotes the mean of the both variables respectively.
 Estimation of :math:`p`-values
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The :py:func:`test` function also returns the :math:`p`-values for the given 
+The :py:func:`test` function also returns the :math:`p`-values for the given
 dataset under the various alternative hypotheses. Note that the estimation of
 the :math:`p`-value is not essential to the computation of the test results as
 formulated above. The :math:`p`-values need to estimated separately depending
@@ -227,7 +227,7 @@ normal distribution, we can write down the :math:`p`-values as:
 
     .. math::
 
-        p_{Z_{MK}} &= 
+        p_{Z_{MK}} &=
             \begin{cases}
                 \int_{Z_{MK}}^{\infty} f(u) \mathrm{d}u,& |E[S]|>\varepsilon\\
                 0.5,  & |E[S]| \leq \varepsilon\\
@@ -237,7 +237,7 @@ normal distribution, we can write down the :math:`p`-values as:
 
     .. math::
 
-        p_{Z_{MK}} &= 
+        p_{Z_{MK}} &=
             \begin{cases}
                 \int^{Z_{MK}}_{-\infty} f(u) \mathrm{d}u,& |E[S]|>\varepsilon\\
                 0.5,  & |E[S]| \leq \varepsilon\\
@@ -247,7 +247,7 @@ normal distribution, we can write down the :math:`p`-values as:
 
     .. math::
 
-        p_{Z_{MK}} &= 0.5 
+        p_{Z_{MK}} &= 0.5
             \begin{cases}
                 \int_{Z_{MK}}^{\infty} f(u) \mathrm{d}u,& E[S]>\varepsilon\\
                 1,  & |E[S]| \leq \varepsilon\\
@@ -359,7 +359,7 @@ def test(t, x, eps=None, alpha=None, Ha=None):
     # compute test based on given 'alpha' and alternative hypothesis
     # note: for all the following cases, the null hypothesis Ho is:
     # Ho := there is no monotonic trend
-    # 
+    #
     # Ha := There is an upward monotonic trend
     if Ha == "up":
         Z_ = ndtri(1. - alpha)
@@ -410,4 +410,4 @@ def test(t, x, eps=None, alpha=None, Ha=None):
         elif Ha == "upordown":
             p = 0.5 * (ndtr(Zmk))
 
-    return MK, m, c, p
+    return Zmk, MK, m, c, p
