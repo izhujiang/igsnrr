@@ -9,6 +9,7 @@ import pandas as pd
 from sklearn import linear_model
 import matplotlib.pyplot as plt
 
+# https://zhuanlan.zhihu.com/p/37605060
 
 # D1-Object: inde between [1,M], used by setupVirtualVairableX
 class D1Object:
@@ -53,7 +54,7 @@ class PieceWiseLinearRegressionContext:
             minSegmentCount=1,
             maxSegmentCount=5,
             maxFirstInflection=None,
-            minLastInflection=1,
+            minLastInflection=2,
             ceofDiffEpsilon=0.00001,
             ceofThreshold=0.99,
             rollingWinSize=5,
@@ -73,7 +74,7 @@ class PieceWiseLinearRegressionContext:
         # [0, maxFirstInflection]: valid scope for first potential Inflections.
         # [minLatInflection, nrow]: valid scope for last potential Inflections.
         if maxFirstInflection is None:
-            self.maxFirstInflection = self.N
+            self.maxFirstInflection = self.N - 1
         else:
             self.maxFirstInflection = maxFirstInflection
         self.minLastInflection = minLastInflection
@@ -102,7 +103,8 @@ class PieceWiseLinearRegression:
         threshold = self.ctx.threshold
 
         M = (len(self.pc) + 1)
-        r = [0] * (M + 1)  # for storing max coef at M
+        r = [0] * (M + 1)  # for storing max correlation coefficient at M
+        rr = [0] * (M + 1)  # for storing max regression coefficient at M
         c = [[]] * (M + 1)  # for storing inflection points at M
         ts = [0] * (M + 1)  # for storing time comsming at M
         sc = M  # for storing section count
@@ -115,7 +117,7 @@ class PieceWiseLinearRegression:
         maxSegCnt = self.ctx.maxSegmentCount
         isDebug = self.ctx.debug
         for M in range(minSegCnt, maxSegCnt + 1):
-            r[M], c[M] = self.MaxCorrcoef(M)
+            r[M], rr[M], c[M] = self.MaxCorrcoef(M)
             sc = M
             # level 1 debug for time and max corrcoef at M segments.
             if isDebug > 0:
@@ -143,16 +145,19 @@ class PieceWiseLinearRegression:
                 # return r[M-1], c[M-1]
                 sc = M - 1
                 break
-        return r[sc], c[sc]
+        return r[sc], rr[sc], c[sc]
 
     def MaxCorrcoef(self, M):
+        max_c = None
+        max_cor_coef = -1
+        max_reg_coef = None
+
         if M == 1:
-            return self.calculateCorrceof([]), ()
+            max_cor_ceof, max_reg_coef = self.calculateCorrceof([])
+            return max_cor_ceof, max_reg_coef , ()
 
         cs = combinations(self.pc, M - 1)
 
-        max_c = None
-        max_coef = -1
         maxFirstInflection = self.ctx.maxFirstInflection
         minLastInflection = self.ctx.minLastInflection
         isDebug = self.ctx.debug
@@ -167,30 +172,40 @@ class PieceWiseLinearRegression:
             # index += 1
 
             # t1 = datetime.now()
-            coef = self.calculateCorrceof(c)
+            cor_coef,reg_coef = self.calculateCorrceof(c)
             # t2 = datetime.now()
 
             # print("calculateCorrceof consuming ", t2 - t1)
 
-            if coef > max_coef:
-                max_coef = coef
+            if cor_coef > max_cor_coef:
+                max_cor_coef = cor_coef
+                max_reg_coef = reg_coef
                 max_c = c
                 # debug level 2 for print internal max coef at specific M
                 if isDebug > 1:
-                    print(c, coef)
+                    print(c, cor_coef)
+                    print(max_reg_coef)
 
-        return max_coef, max_c
+        return max_cor_coef, max_reg_coef, max_c
 
     def calculateCorrceof(self, c):
         M = len(c) + 1
         N = len(self.y)
 
-        ceof = None
+        cor_ceof = None
+        reg_ceof = None
 
         if M == 1:
             # X = self.t.reshape((N, 1))
             # Y = self.y.reshape((N, 1))
-            ceof = np.corrcoef(self.t, self.y)
+            cor_ceof = np.corrcoef(self.t, self.y)
+            X = self.t.reshape((N, 1))
+            Y = self.y.reshape((N, 1))
+            lm = linear_model.LinearRegression()
+            lm.fit(X, Y)
+            reg_ceof = lm.coef_[0]
+            # print("1 segement with correlation coefficient", cor_ceof)
+            # print("1 segement with regression coefficient", reg_ceof)
 
         else:
             cc = np.concatenate((np.array(c), self.t[-1:]), axis=0)
@@ -205,11 +220,18 @@ class PieceWiseLinearRegression:
             # with sklearnk
             lm = linear_model.LinearRegression()
             lm.fit(X, Y)
+            reg_ceof = lm.coef_[0]
             predictions = lm.predict(X).reshape((1, N))
-            ceof = np.corrcoef(predictions, self.y)
+            cor_ceof = np.corrcoef(predictions, self.y)
 
-        # score = lm.score(X, Y)
-        return ceof[0, 1]
+            # print(c)
+            # print(M, " segement with correlation coefficient")
+            # print(cor_ceof)
+            # print(M, " segement with regression coefficient")
+            # print(reg_ceof)
+            # score = lm.score(X, Y)
+
+        return cor_ceof[0, 1], reg_ceof
 
     # N Seriels
     # M segments
@@ -268,15 +290,19 @@ def doMovingAverages(df, ctx):
     df['Y_GRD'] = y_avg_grd
     # print(df)
 
-
+# input:df -- pandas.Dataframe, include [T, Y]
+# caution: t -- [1,2...N],
 def doPieceWise(df, ctx):
+    min = df['T'].min()
+    if min != 1:
+        df['T'] = df['T'] - (min -1)
     doMovingAverages(df, ctx)
 
     nlargest_row = df.nlargest(ctx.numPotentialInflection, 'Y_GRD')
     df['NLG_GRD'] = nlargest_row['Y_AVG']
     nlargest_day = np.sort(nlargest_row['T'].to_numpy())
 
-    if DEBUG_ENABLE:
+    if ctx.debug:
         print("-----------------------------------------")
         print("potential inflection points", nlargest_day)
 
@@ -287,8 +313,9 @@ def doPieceWise(df, ctx):
     pwlr = PieceWiseLinearRegression(
        t, y, nlargest_day, ctx)
     # cp - connected points with max coef.
-    max_coef, cp = pwlr.findSections()
-    return max_coef, cp
+    max_cor_coef, max_reg_coef, cp = pwlr.findSections()
+    # print(max_cor_coef, max_reg_coef, cp)
+    return max_cor_coef, max_reg_coef, cp
 
 
 def listPieceWiseByInflection(
@@ -301,11 +328,11 @@ def listPieceWiseByInflection(
 
     for numInf in range(
             minNumPotentialInflection, maxNumPotentialInflection+1, step):
-        max_coef, cp = doPieceWise(df, numInf)
+        max_cor_coef, max_reg_coef, cp = doPieceWise(df, numInf)
         if output is not None:
             output.print(
                     "{0}\t{1}\t{2}\t{3}\t{4}".format(
-                        rolling_win_size, numInf, len(cp) + 1, max_coef, cp))
+                        rolling_win_size, numInf, len(cp) + 1, max_cor_coef,max_reg_coef,cp))
 
     t2 = datetime.now()
     print("time comsuming for loop ({0},{1}:{2}): {3} seconds".format(
@@ -401,7 +428,7 @@ def doDisplay(df):
 
 if __name__ == "__main__":
     #
-    DATA_LOADFROM_FILE = True
+    DATA_LOADFROM_FILE = False
 
     ENABLE_DISPLAY = True
     SHOW_ALL_INFLECTION = False
@@ -420,32 +447,43 @@ if __name__ == "__main__":
         rollingWinSize = 5
         fixedPointRate = 0.4
     else:
-        t = np.array(list(range(1, 21)))
+        t = np.arange(0, 20)
         # y = np.array([
         #    1447, 1580, 2037, 1779.9266, 1398.0007, 1614.4379,
         #    1493.4379, 1580, 1613, 1728.7712, 1630.695, 1516.4379, 1775.1046,
         #    1434.4379, 1383.695, 1720.7784, 1664, 1578.9172, 1711.4103, 1691])
 
         y = np.zeros(20)
-        SD = 20
-        for i in range(6):
-            y[i] = 1047 + np.random.randn() * SD
+        SD = 40
+
+        # for i in range(0, 20):
+        #     y[i] = 1047 + (1583 - 1047) * i / 20 + np.random.randn() * SD
+
+        for i in range(0, 6):
+             y[i] = 1047 + (1583 - 1047) * i / 6 + np.random.randn() * SD
+        for i in range(6, 20):
+            y[i] = 1583 + (1283 - 1583) * (i-6 )/ 14 + np.random.randn() * SD
+
+        # for i in range(6):
+        #     y[i] = 1047 + np.random.randn() * SD
         # for i in range(6, 15):
         #     y[i] = 1047 + (1583 - 1047) * (i - 6) / (15 - 6) + np.random.randn() * SD
         # for i in range(15, 20):
         #     y[i] = 1583 + np.random.randn() * SD
-        for i in range(6, 15):
-           y[i] =  1580 + np.random.randn() * SD
-        for i in range(15, 20):
-            y[i] =  1283 + np.random.randn() * SD
+        # for i in range(6, 15):
+        #    y[i] =  1580 + np.random.randn() * SD
+        # for i in range(15, 20):
+        #     y[i] =  1283 + np.random.randn() * SD
         print(y)
         data = {'T': t, 'Y': y}
         df = pd.DataFrame.from_dict(data)
         numPotentials = 10
-        maxFirstInflection = 20
-        minLastInflection = 1
+        maxFirstInflection = 19
+        minLastInflection = 2
         rollingWinSize = 5
         fixedPointRate = 0.3
+        ceofThreshold = 0.9
+        ceofDiffEpsilon = 0.00001
 
     if SHOW_ALL_INFLECTION:
         pass
@@ -472,8 +510,8 @@ if __name__ == "__main__":
             maxSegmentCount=5,
             maxFirstInflection=maxFirstInflection,
             minLastInflection=minLastInflection,
-            ceofThreshold=0.99,
-            ceofDiffEpsilon=0.0000001,
+            ceofThreshold=ceofThreshold,
+            ceofDiffEpsilon=ceofDiffEpsilon,
             rollingWinSize=rollingWinSize,
             fixedPointRate=fixedPointRate,
             numPotentialInflection=numPotentials,
@@ -481,14 +519,14 @@ if __name__ == "__main__":
         )
 
         t1 = datetime.now()
-        max_coef, cp = doPieceWise(df, ctx)
+        max_cor_coef, max_reg_coef, cp = doPieceWise(df, ctx)
         t2 = datetime.now()
         t2 - t1
 
         print(
-            "{0} piecewise and split points:{1} max corrcoef {2}.\n\
-            cosuming {3}".format(
-                len(cp) + 1, cp, max_coef, (t2 - t1)))
+            "{0} piecewise and split points:{1} \nmax correlation corrcoef {2}.\n\
+regression corrcoef {3} \ncosuming {4}".format(
+                len(cp) + 1, cp, max_cor_coef, max_reg_coef, (t2 - t1)))
         if ENABLE_DISPLAY:
             doSeperateLinearRegression(df, cp)
             doDisplay(df)

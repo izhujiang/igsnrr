@@ -4,8 +4,8 @@ import os
 import rasterio
 
 dataRoot = '/Users/jiangzhu/workspace/igsnrr/data/MOD13Q1'
-inputDir = os.path.join(dataRoot, 'MOD13Q1-MEDIAN')
-outputDir = os.path.join(dataRoot, 'MOD13Q1-MEDIAN-join')
+inputDir = os.path.join(dataRoot, 'MOD13Q1-MEDIAN-XJ')
+outputDir = os.path.join(dataRoot, 'MOD13Q1-MEDIAN-XJ-join')
 if not os.path.exists(outputDir):
     os.makedirs(outputDir)
 
@@ -21,11 +21,9 @@ with rasterio.open(fInput) as dt_in:
             'height': dt_in.height,
             'width': dt_in.width
             })
-fOutput = os.path.join(outputDir, 'MOD13Q1-MEDIAN-join.tif')
+fOutput = os.path.join(outputDir, 'MOD13Q1-MEDIAN-XJ-join.tif')
 
-with rasterio.open(
-    fOutput, 'w',
-    **profile) as dt_out:
+with rasterio.open(fOutput, 'w', **profile) as dt_out:
     year_index = 1
 
     for fInput in files:

@@ -1,0 +1,1 @@
+python mod13q1-geotiff.py PIECEWISE /Users/jiangzhu/workspace/igsnrr/data/MOD13Q1/MOD13Q1-MEDIAN-XJ-join/MOD13Q1-MEDIAN-XJ-join.tif 2000 2100 3000 3100 2000 /Users/jiangzhu/workspace/igsnrr/data/MOD13Q1/MOD13Q1-MEDIAN-XJ-out
