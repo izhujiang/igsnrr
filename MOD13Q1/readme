@@ -2,3 +2,5 @@
  pip install wheel
  pip install rasterio
  pip install statsmodels
+ pip install pandas
+ pip install matplotlib
