@@ -135,8 +135,11 @@ class PieceWiseLinearRegression:
                     print("{0} piecewise and split points:{1} max corrcoef {2}.\
                             \n".format(M, c[M], r[M]))
                 # return r[M], c[M]
-                sc = M
-                break
+                cor_coefs = self.calculateCorrceofByPiece(c[M])
+                print("abs of cor_coefs: ", cor_coefs)
+                if min(cor_coefs) > threshold:
+                    sc = M
+                    break
             # when corrcoef varies small enough during the iterate
             if abs(r[M] - r[M - 1]) < epsilon:
                 if isDebug > 0:
@@ -261,6 +264,23 @@ class PieceWiseLinearRegression:
 
         return X
 
+    # calclate Corrceof piece by piece
+    def calculateCorrceofByPiece(self, c):
+        M = len(c) + 1
+
+        cor_ceofs = [0] * M
+        cc = np.concatenate((np.array(c), self.t[-1:]), axis=0)
+
+        p0 = 1
+        # print(c)
+        for i in range(M):
+            p1 = cc[i]
+            # print(self.t[p0-1:p1])
+            cor_ceofs[i] = abs(np.corrcoef(self.t[p0-1:p1], self.y[p0-1:p1])[0,1])
+
+            p0 = p1
+
+        return cor_ceofs
 
 # -------- Helper functions and classes -------------------
 class Output:
@@ -428,7 +448,7 @@ def doDisplay(df):
 
 if __name__ == "__main__":
     #
-    DATA_LOADFROM_FILE = False
+    DATA_LOADFROM_FILE = True
 
     ENABLE_DISPLAY = True
     SHOW_ALL_INFLECTION = False
@@ -441,11 +461,13 @@ if __name__ == "__main__":
         df = pd.read_csv(
             "/Users/jiangzhu/workspace/igsnrr/data/ndvi/ndvi_2004.txt",
             sep='\t')
-        numPotentials = 15
+        numPotentials = 20
         maxFirstInflection = 151
         minLastInflection = 273
-        rollingWinSize = 5
+        rollingWinSize = 11
         fixedPointRate = 0.4
+        ceofThreshold = 0.95
+        ceofDiffEpsilon = 0.0000001
     else:
         t = np.arange(0, 20)
         # y = np.array([
@@ -459,10 +481,10 @@ if __name__ == "__main__":
         # for i in range(0, 20):
         #     y[i] = 1047 + (1583 - 1047) * i / 20 + np.random.randn() * SD
 
-        for i in range(0, 6):
-             y[i] = 1047 + (1583 - 1047) * i / 6 + np.random.randn() * SD
-        for i in range(6, 20):
-            y[i] = 1583 + (1283 - 1583) * (i-6 )/ 14 + np.random.randn() * SD
+        # for i in range(0, 6):
+        #      y[i] = 1047 + (1583 - 1047) * i / 6 + np.random.randn() * SD
+        # for i in range(6, 20):
+        #     y[i] = 1583 + (1283 - 1583) * (i-6 )/ 14 + np.random.randn() * SD
 
         # for i in range(6):
         #     y[i] = 1047 + np.random.randn() * SD
@@ -470,10 +492,10 @@ if __name__ == "__main__":
         #     y[i] = 1047 + (1583 - 1047) * (i - 6) / (15 - 6) + np.random.randn() * SD
         # for i in range(15, 20):
         #     y[i] = 1583 + np.random.randn() * SD
-        # for i in range(6, 15):
-        #    y[i] =  1580 + np.random.randn() * SD
-        # for i in range(15, 20):
-        #     y[i] =  1283 + np.random.randn() * SD
+        for i in range(0, 10):
+           y[i] = 1083 + np.random.randn() * SD
+        for i in range(10, 20):
+            y[i] = 1580 + np.random.randn() * SD
         print(y)
         data = {'T': t, 'Y': y}
         df = pd.DataFrame.from_dict(data)
@@ -515,7 +537,7 @@ if __name__ == "__main__":
             rollingWinSize=rollingWinSize,
             fixedPointRate=fixedPointRate,
             numPotentialInflection=numPotentials,
-            debugLevel=0,
+            debugLevel=1,
         )
 
         t1 = datetime.now()

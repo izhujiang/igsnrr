@@ -7,30 +7,124 @@ import rasterio
 from enum import Enum
 import argparse
 import json
-from datetime import datetime, timedelta
+from datetime import datetime
 import mkt
 import piecewise as pw
+import math
+import multiprocessing as mp
+
 
 class AnalysisMethood(Enum):
     OLS = 1,
     MANNKENDALL = 2,
     PIECEWISE = 4,
+    MAX = 8,
     UNKNOWN = 256
+
 
 # calc whole grid
 def analyzeGrid(fInput, opts, outputDir, fOutputPrefix, method):
-    profile = None
-    debug_infos = []
+    runMode = "multipleprocess"
+    # runMode = "singleprocess"
     with rasterio.open(fInput) as dt_in:
         profile = dt_in.profile.copy()
-        ndvi_arr = dt_in.read()
+        # print(profile)
+        # print(dt_in.descriptions)
+
+        width = profile['width']
+        height = profile['height']
+        cpu_num = int(mp.cpu_count())
+        # cpu_num = 4
+        step = math.ceil(height / cpu_num)
+
+        if runMode == "singleprocess":
+            print("running single process mode ... ")
+            for i in range(cpu_num):
+                line_start = i * step
+                line_end = min(line_start + step, height)
+                chunk_opts = opts.copy()
+                chunk_opts["line_start"] = line_start
+                chunk_opts["line_end"] = line_end
+                analyzeChunk(
+                        "{:03d}".format(i+1), fInput, chunk_opts, outputDir,
+                        fOutputPrefix, method)
+        else:
+            print("running multiprocessing mode using pool.apply_async with \
+            {0} cpus ...".format(cpu_num))
+            mp.freeze_support()
+            pool = mp.Pool(cpu_num)
+            for i in range(cpu_num):
+                line_start = i * step
+                line_end = min(line_start + step, height)
+                chunk_opts = opts.copy()
+                chunk_opts["line_start"] = line_start
+                chunk_opts["line_end"] = line_end
+                pool.apply_async(
+                        analyzeChunk, args=(
+                            "{:03d}".format(i+1),
+                            fInput,
+                            chunk_opts,
+                            outputDir,
+                            fOutputPrefix,
+                            method)
+                        )
+            pool.close()
+            pool.join()
+
+        # combine parts into whole files
+        for root, dirs, _ in os.walk(outputDir, topdown=False):
+            for name in dirs:
+                cur_dir = os.path.join(root, name)
+                part_arr = []
+                for part_file in sorted(os.listdir(cur_dir)):
+                    with rasterio.open(
+                            os.path.join(cur_dir, part_file)) as partfile_in:
+                        part_data = partfile_in.read(1)
+                        part_arr.append(part_data)
+
+                # print(part_arr[0].shape, part_arr[3].shape)
+                data = np.vstack(tuple(part_arr))
+
+                fOutput = os.path.join(root,  cur_dir + ".tiff")
+                profile.update({
+                        # 'count': len(bands_data),
+                        'count': 1,
+                        'dtype': 'float32',
+                        'height': height,
+                        'width': width,
+                        })
+                with rasterio.open(fOutput, 'w', **profile) as dt_out:
+                    layerIndex = 1
+                    # dt_out.nodata = dt_in.nodata
+                    dt_out.write_band(layerIndex, data)
+
+
+def analyzeChunk(chunkId, fInput, opts, outputDir, fOutputPrefix, method):
+    '''
+    analyzeChunk
+    '''
+    profile = None
+    debug_infos = []
+    print("processing ", chunkId, opts)
+
+    with rasterio.open(fInput) as dt_in:
+        profile = dt_in.profile.copy()
+        # window = Window(col_off, row_off, width, height)
+        width = profile["width"]
+        height = opts["line_end"] - opts["line_start"]
+        chunk_win = rasterio.windows.Window(
+                0, opts["line_start"], width, height)
+        ndvi_arr = dt_in.read(window=chunk_win)
         # msk = dt_in.read_masks(1)
         zlen, height, width = ndvi_arr.shape
         # print(ndvi_arr.shape)
-        x = np.arange(args.timeStart, args.timeStart + zlen)
+        x = np.arange(opts["timeStart"], opts["timeStart"] + zlen)
 
         # fill the buf for storing analysis result
-        bands_data, bands_desc = initResultStorage(method, (height, width), dt_in.nodata)
+        bands_data, bands_desc = initResultStorage(
+                method, (height, width), dt_in.nodata)
+        # mask = dt_in.dataset_mask()
+        # print(mask)
         profile.update({
                 # 'count': len(bands_data),
                 'count': 1,
@@ -40,52 +134,57 @@ def analyzeGrid(fInput, opts, outputDir, fOutputPrefix, method):
                 })
         # fill the buf store analysis result per single point
         # for i in range(int(height/2-100), int(height/2)):
-            # for j in range(int(width/2-100), int(width/2)):
+        # for j in range(int(width/2-100), int(width/2)):
         t1 = datetime.now()
 
-        range_x_left = max(0, args.left)
-        range_x_right = min(width, args.right)
-        range_y_top = max(0, args.top)
-        range_y_bottom = min(height, args.bottom)
+        for i in range(0, height):
+            if i % 50 == 0:
+                print(
+                        "processing line : {0} at {1}".format(
+                            i + opts["line_start"], datetime.now()))
 
-        for i in range(range_y_top, range_y_bottom):
-            # if i % 10 == 0:
-            print("processing line : {0} at {1}".format(i, datetime.now()))
-            for j in range(range_x_left, range_x_right):
-                # print("processing column :", j)
+            for j in range(0, width):
                 y = ndvi_arr[:, i, j]
                 if not np.isnan(np.min(y)):
                     resInPnt = analyzeSinglePoint(x, y, method)
-                    # print("\nvalue at point (%d, %d)\n".format(i, j), resInPnt)
                     for k in resInPnt:
                         bands_data[k][i, j] = resInPnt[k]
                     # for (k, vArray) in  bands_data.items():
                     #     vArray[i, j] = resInPnt[k]
-                    if args.debug:
-                        debug_infos.append({'loc_i':i, 'loc_j':j, 'v': y.tolist(), 'ana': resInPnt})
+                    if opts["debug"]:
+                        debug_infos.append({
+                                    'loc_i': i, 'loc_j': j,
+                                    'v': y.tolist(), 'ana': resInPnt})
                 else:
-                    for (k, vArray) in  bands_data.items():
+                    for (k, vArray) in bands_data.items():
                         # vArray[i, j] = np.nan
                         # vArray[i, j] = dt_in.nodata
                         vArray[i, j] = -9999
 
         t2 = datetime.now()
-        print("analyzing {0} line takes {1} seconds.\n".format((range_y_bottom - range_y_top),(t2-t1).seconds))
+        print("analyzing {0} line takes {1} seconds.".format(
+            height, (t2-t1).seconds))
 
+    abspath = os.path.abspath(fInput)
+    _, fname = os.path.split(abspath)
+    fprefix, _ = os.path.splitext(fname)
     # output analysis result into multiple tiff files
-    for (k, vArray) in  bands_data.items():
-        fOutput = os.path.join(outputDir, fOutputPrefix + k + ".tiff")
-        with rasterio.open( fOutput, 'w', **profile) as dt_out:
+    for (k, vArray) in bands_data.items():
+        k_dir = os.path.join(outputDir, fprefix + "-" + k)
+        if not os.path.exists(k_dir):
+            os.makedirs(k_dir)
+        fOutput = os.path.join(k_dir, chunkId + ".tiff")
+        with rasterio.open(fOutput, 'w', **profile) as dt_out:
             layerIndex = 1
             # dt_out.nodata = dt_in.nodata
             dt_out.nodata = -9999
             dt_out.write_band(layerIndex, vArray)
             # dt_out.write_mask(msk)
-                # dt_out.set_band_description(layerIndex, bands_desc[k])
-                # layerIndex += 1
+            # dt_out.set_band_description(layerIndex, bands_desc[k])
+            # layerIndex += 1
 
     # write debug info into txt file
-    if args.debug:
+    if opts["debug"]:
         flog = os.path.join(outputDir, 'debug_info.txt')
         with open(flog, 'w') as fo:
             for rec in debug_infos:
@@ -95,7 +194,7 @@ def analyzeGrid(fInput, opts, outputDir, fOutputPrefix, method):
 
 
 # init buffer for storing analysis result
-def initResultStorage(method, shape, nodata ):
+def initResultStorage(method, shape, nodata):
     bands_data = {}
     bands_desc = {}
     if method == AnalysisMethood.OLS:
@@ -108,7 +207,7 @@ def initResultStorage(method, shape, nodata ):
             'f': np.full(shape, nodata, np.float32),
             't0': np.full(shape, nodata, np.float32),
             't1': np.full(shape, nodata, np.float32),
-        }
+            }
         bands_desc = {
             'b0': "coef b0",
             'b1': "coef b1",
@@ -118,7 +217,7 @@ def initResultStorage(method, shape, nodata ):
             'f': "F-statistic",
             't0': "tValue t0",
             't1': "tValue t1",
-       }
+            }
     elif method == AnalysisMethood.MANNKENDALL:
         bands_data = {
             'zmk': np.full(shape, nodata, np.float32),
@@ -129,11 +228,12 @@ def initResultStorage(method, shape, nodata ):
         }
         bands_desc = {
             'zmk': "the Z-score based on above estimated mean and variance",
-            'ha': "result of the statistical test indicating whether or not to accept hte alternative hypothesis ‘Ha’",
+            'ha': "result of the statistical test indicating whether \
+                    or not to accept hte alternative hypothesis ‘Ha’",
             'm': "slope of the linear fit",
             'c': "intercept of the linear fit",
             'p': "p-value of the obtained Z-score statistic",
-       }
+        }
     elif method == AnalysisMethood.PIECEWISE:
         bands_data = {
             'NS': np.full(shape, nodata, np.float32),
@@ -160,10 +260,18 @@ def initResultStorage(method, shape, nodata ):
             'b3': "third segment slope",
             'b4': "forth segment slope",
             'b5': "fifth segment slope"
-       }
+         }
+    elif AnalysisMethood.MAX:
+        bands_data = {
+            'max': np.full(shape, nodata, np.float32),
+        }
+        bands_desc = {
+            'max': "maximum vale",
+         }
     else:
         print("unknown analysis method")
     return bands_data, bands_desc
+
 
 # calc single point
 def analyzeSinglePoint(x, y, method):
@@ -186,7 +294,7 @@ def analyzeSinglePoint(x, y, method):
         # print(res)
     elif method == AnalysisMethood.MANNKENDALL:
         # get the slope, intercept and pvalues from the mklt module
-        ALPHA = 0.01
+        ALPHA = 0.05
         Zmk, MK, m, c, p = mkt.test(x, y, eps=1E-3, alpha=ALPHA, Ha="upordown")
 
         ha = 1
@@ -195,7 +303,7 @@ def analyzeSinglePoint(x, y, method):
         # ha = not MK.startswith('reject')
         res = {
             'zmk': Zmk,
-            'ha':ha,
+            'ha': ha,
             'm': m,
             'c': c,
             'p': p,
@@ -228,53 +336,56 @@ def analyzeSinglePoint(x, y, method):
 
         res = {
             'NS': len(cp)+1,
-            'ceof':max_cor_coef,
+            'ceof': max_cor_coef,
         }
         for i in range(len(cp)):
             res["S{0}".format(i+1)] = cp[i]
         for i in range(len(max_reg_coef)):
             res["b{0}".format(i+1)] = max_reg_coef[i]
+    elif method == AnalysisMethood.MAX:
+        res = {
+            'max': y.max()
+        }
     else:
         print("unknown analysis method")
 
     return res
 
+
 # main entry
 debugSinglePoint = False
 
+
 if __name__ == "__main__":
-    if debugSinglePoint == True: # for debug in single point
+    if debugSinglePoint is True:  # for debug in single point
         # for debug sinle point
         x = np.array(list(range(1, 21)))
-        y = np.array([1447, 1580, 2037, 1779.9266, 1398.0007, 1614.4379, 1493.4379,
-                1580, 1613, 1728.7712, 1630.695, 1516.4379, 1775.1046, 1434.4379,
-                1383.695, 1720.7784, 1664, 1578.9172, 1711.4103, 1691])
+        y = np.array([
+            1447, 1580, 2037, 1779.9266, 1398.0007, 1614.4379,
+            1493.4379, 1580, 1613, 1728.7712, 1630.695, 1516.4379,
+            1775.1046, 1434.4379, 1383.695, 1720.7784, 1664, 1578.9172,
+            1711.4103, 1691])
         # analyzeSinglePoint(x, y, AnalysisMethood.OLS)
         # analyzeSinglePoint(x, y, AnalysisMethood.MANNKENDALL)
         analyzeSinglePoint(x, y, AnalysisMethood.PIECEWISE)
     else:
-        parser = argparse.ArgumentParser(description="Analysis program for mod13q1 in geotiff format")
-        parser.add_argument("method",
-                            help="method(OLS, MANNKENDALL) for analyze modis13q1 data")
-        parser.add_argument("src",
-                            help="input geotiff file for analysis")
-        parser.add_argument("top", type=int,
-                            help="top of extent")
-        parser.add_argument("bottom", type=int,
-                            help="bottom of extent")
-        parser.add_argument("left", type=int,
-                            help="left of extent")
-        parser.add_argument("right", type=int,
-                            help="right of extent")
-        parser.add_argument("timeStart", type=int,
-                            help="start time")
+        parser = argparse.ArgumentParser(
+                description="Analysis program for mod13q1 in geotiff format")
+        parser.add_argument(
+                "method",
+                help="method(OLS, MANNKENDALL) to analyze modis13q1. ")
+        parser.add_argument(
+                "src",
+                help="input geotiff file for analysis")
+        parser.add_argument(
+                "timeStart", type=int, help="start time")
         parser.add_argument("destDir",
                             help="output directory to store analysis results")
-        parser.add_argument("-d", "--debug", action="store_true",
-                        help="for debug")
+        parser.add_argument(
+                "-d", "--debug", action="store_true", help="for debug")
 
         args = parser.parse_args()
-        print(args)
+        print("input arguments", args)
 
         # define input and output
         # dataRoot = '/Users/jiangzhu/workspace/igsnrr/data/MOD13Q1'
@@ -288,7 +399,6 @@ if __name__ == "__main__":
         # fOutput = os.path.join(outputDir, 'MOD13Q1-MEDIAN-ana.tif')
         fOutputPrefix = "MOD13Q1-MEDIAN-ana_"
 
-
         method = AnalysisMethood.UNKNOWN
         if args.method == "OLS":
             method = AnalysisMethood.OLS
@@ -296,7 +406,16 @@ if __name__ == "__main__":
             method = AnalysisMethood.MANNKENDALL
         elif args.method == "PIECEWISE":
             method = AnalysisMethood.PIECEWISE
+        elif args.method == "MAX":
+            method = AnalysisMethood.MAX
         else:
             method = AnalysisMethood.UNKNOWN
-        # opts = {}
-        analyzeGrid(fInput, args, outputDir, fOutputPrefix, method)
+        opts = {
+                "method": method,
+                "timeStart": args.timeStart,
+                "debug": args.debug,
+                }
+        t1 = datetime.now()
+        analyzeGrid(fInput, opts, outputDir, fOutputPrefix, method)
+        t2 = datetime.now()
+        print("time cost:", (t2-t1))
