@@ -373,7 +373,7 @@ if __name__ == "__main__":
                 description="Analysis program for mod13q1 in geotiff format")
         parser.add_argument(
                 "method",
-                help="method(OLS, MANNKENDALL) to analyze modis13q1. ")
+                help="one option of [ LS, MANNKENDALL, PIECEWISE, MAX ]")
         parser.add_argument(
                 "src",
                 help="input geotiff file for analysis")
