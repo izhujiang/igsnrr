@@ -4,3 +4,13 @@
  pip install statsmodels
  pip install pandas
  pip install matplotlib
+
+
+ for windows, plz ref https://rasterio.readthedocs.io/en/latest/installation.html
+Windows
+Binary wheels for rasterio and GDAL are created by Christoph Gohlke and are available from his website.
+To install rasterio, download both binaries for your system (rasterio and GDAL) and run something like this from the downloads folder:
+
+$ pip install -U pip
+$ pip install GDAL-1.11.2-cp27-none-win32.whl
+$ pip install rasterio-0.24.0-cp27-none-win32.whl
