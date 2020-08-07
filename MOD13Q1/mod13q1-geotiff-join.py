@@ -27,7 +27,8 @@ def joinFiles(inputdir, outputDir, fprefix):
 
     for bandId, bandname in enumerate(descriptions):
         print("\njoin band {0} {1} ...".format(bandId+1, bandname))
-        fName = outputFilePrefix + "-" + bandname + ".tif"
+        # print(fprefix, bandname)
+        fName = fprefix + "-" + bandname + ".tif"
         fOutput = os.path.join(outputDir, fName)
         print("write to {0} ...".format(fOutput))
 
@@ -46,7 +47,7 @@ if __name__ == "__main__":
     workspace = "/Users/jiangzhu/workspace/igsnrr/data/MOD13Q1/"
     inputDir = os.path.join(workspace, "MOD13Q1-MEDIAN-XJ")
     outputDir = os.path.join(workspace, "MOD13Q1-MEDIAN-XJ-join")
-    outputFilePrefix = "MOD13Q1-MEDIAN-XJ-join"
+    prefix = "MOD13Q1-MEDIAN-XJ-join"
 
     parser = argparse.ArgumentParser(
             description="Join multiple tiff into serial files")
