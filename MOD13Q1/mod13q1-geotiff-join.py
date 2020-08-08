@@ -8,7 +8,14 @@ def joinFiles(inputdir, outputDir, fprefix):
     if not os.path.exists(outputDir):
         os.makedirs(outputDir)
 
-    files = sorted(os.listdir(inputDir))
+    files = []
+    f_list = sorted(os.listdir(inputDir))
+    # print f_list
+    for f in f_list:
+        print("valid files:")
+        if os.path.splitext(f)[1] == '.tif':
+            files.append(f)
+            print(f)
 
     fInput = os.path.join(inputDir, files[0])
     profile = None
