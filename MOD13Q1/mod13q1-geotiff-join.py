@@ -11,22 +11,30 @@ def joinFiles(inputdir, outputDir, fprefix):
     files = []
     f_list = sorted(os.listdir(inputDir))
     # print f_list
+    print("valid files:")
     for f in f_list:
-        print("valid files:")
         if os.path.splitext(f)[1] == '.tif':
-            files.append(f)
             print(f)
+            files.append(f)
 
     fInput = os.path.join(inputDir, files[0])
     profile = None
     descriptions = None
     with rasterio.open(fInput) as dt_in:
         profile = dt_in.profile.copy()
+        # defaults= {'blockxsize': 256, 'blockysize': 256, 'compress': 'lzw',
+        # 'driver': 'GTiff', 'dtype': 'uint8', 'interleave': 'band',
+        # 'nodata': 0, 'tiled': True}
         profile.update({
                 'count': len(files),
                 'dtype': 'float32',
                 'height': dt_in.height,
-                'width': dt_in.width
+                'width': dt_in.width,
+                'blockxsize': 256,
+                'blockysize': 256,
+                'compress': 'lzw',
+                'interleave': 'band',
+                # 'tiled': True
                 })
         # print("profile", profile)
         # print("descriptions", dt_in.descriptions)
@@ -39,7 +47,8 @@ def joinFiles(inputdir, outputDir, fprefix):
         fOutput = os.path.join(outputDir, fName)
         print("write to {0} ...".format(fOutput))
 
-        with rasterio.open(fOutput, 'w', **profile) as dt_out:
+        # with rasterio.open(fOutput, 'w', **profile) as dt_out:
+        with rasterio.open(fOutput, 'w', **profile, BIGTIFF='YES') as dt_out:
             year_index = 1
             for fo in files:
                 fInput = os.path.join(inputDir, fo)
