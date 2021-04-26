@@ -20,7 +20,7 @@ class SurfDailyTool(ToolBase):
         ToolBase.__init__(self, "SurfDailyTool",
                           "The SurfDaily Tool convert surf daily statisics files organized \
                           by month into files organized by station.")
-        self._version = "surf4hourstool.py 0.0.1"
+        self._version = "SurfDaily.py 0.0.1"
 
     def defineArgumentParser(self, parser):
         parser.add_argument(

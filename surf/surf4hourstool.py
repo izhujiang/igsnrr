@@ -27,7 +27,7 @@ class Surf4HoursTool(ToolBase):
 
     def defineArgumentParser(self, parser):
         # parser.add_argument("source", action="store",
-                            # help="root dir for source files")
+        # help="root dir for source files")
         parser.add_argument("target", action="store",
                             help="root dir for all data")
 
@@ -110,15 +110,17 @@ class Surf4HoursTool(ToolBase):
     #         if items[7] == "999990":
     #             items[7] == "0"
     #         rec = strfmt.format(items[0], int(items[1]), int(items[2]),
-    #                             int(items[3]), int(items[4]), float(items[5]),
-    #                             float(items[6]), float(items[7]))
+    #                             int(items[3]), int(items[4]),
+    #                             float(items[5]), float(items[6]),
+    #                             float(items[7]))
     #         group[items[0]].append(rec)
 
     #     for k, v in group.items():
     #         target = os.path.join(targetRoot, k)
 
     #         recs_w = [
-    #                 strfmt.format(k, year, mon, day, i, 999999, 999999, 999999)
+    #                 strfmt.format(k, year, mon, day, i,
+    #                 999999, 999999, 999999)
     #                 for i in range(24)]
 
     #         for line in v:
@@ -134,9 +136,10 @@ class Surf4HoursTool(ToolBase):
 
     # def insertHeader(self, parentDir):
     #     header = ("{0:>8}{1:>12}{2:>6}{3:>4}{4:>4}{5:>4}"
-    #               "{6:>12}{7:>12}{8:>12}\n").format("SID", "DATETIME", "YEAR",
-    #                                                 "MON", "DAY", "HR",
-    #                                                 "PRES", "TEMP", "PREC")
+    #               "{6:>12}{7:>12}{8:>12}\n").format(
+    #                       "SID", "DATETIME", "YEAR",
+    #                       "MON", "DAY", "HR",
+    #                       "PRES", "TEMP", "PREC")
     #     filelist = sorted(os.listdir(parentDir))
     #     print(filelist)
     #     for item in filelist:
@@ -181,7 +184,8 @@ class Surf4HoursTool(ToolBase):
     #                     recs_empty = [
     #                             strfmt.format(
     #                                 sid, year, mon, day, i,
-    #                                 999999, 999999, 999999) for i in range(24)]
+    #                                 999999, 999999, 999999)
+    #                               for i in range(24)]
     #                     fo.writelines(recs_emt
     #                 today = today + timedelta(days=1)
     #             fo.flush()
@@ -203,9 +207,9 @@ class Surf4HoursTool(ToolBase):
         result = []
         # todo: do config the range of loop
 
-        year = 2010
-        endDay = date(2020, 1, 1)
-        curDay = date(year, 1, 1)
+        y_series = db["YEAR"]
+        endDay = date(y_series.max()+1, 1, 1)
+        curDay = date(y_series.min(), 1, 1)
         while(curDay < endDay):
             if stat_win == "0808":
                 recs = self.queryData(db, curDay, 16)
@@ -214,10 +218,11 @@ class Surf4HoursTool(ToolBase):
             else:
                 recs = self.queryData(db, curDay, -8)
 
-            if not recs.empty:
-                day_rec = self.calcDaily(sid, curDay, recs, stat_win)
-                if day_rec is not None:
-                    result.append(day_rec)
+            # if not recs.empty:
+            day_rec = self.calcDaily(sid, curDay, recs, stat_win)
+            if day_rec is not None:
+                result.append(day_rec)
+
             curDay = curDay + timedelta(days=1)
 
         if stat_win == "0808" or stat_win == "0832":
@@ -254,14 +259,16 @@ class Surf4HoursTool(ToolBase):
         http://www.szmb.gov.cn/quf/2009/08/2017101815192310488.pdf
         """
         if (len(hours24) > 24):
-
-                self._logger.error(("{1}-{2:0>2d}-{3:0>2d},  "
-                                    "Station {0} has more than 24 records on")
-                                   .format(sid, dt.year, dt.month, dt.day))
+            self._logger.error(("{1}-{2:0>2d}-{3:0>2d},  \
+                Station {0} has more than 24 records on").format(
+                    sid, dt.year, dt.month, dt.day))
 
         else:
             # statistics pressure
-            valid_pressure = hours24.query("1200 > PRES > 800")
+            # valid_pressure = hours24.query("1200 > PRES > 600")
+            # temporary change
+            valid_pressure = hours24.query(("1200> PRES > 600 \
+                    & HR in [2, 8, 14, 20]"))
             # print(valid_pressure)
             if len(valid_pressure) == 24:
                 # ok for 24 hours
@@ -269,8 +276,8 @@ class Surf4HoursTool(ToolBase):
                 max_pres = valid_pressure["PRES"].max()
                 min_pres = valid_pressure["PRES"].min()
             else:
-                valid_pressure = hours24.query(("1200> PRES > 600"
-                                               "& HR in [2, 8, 14, 20]"))
+                valid_pressure = hours24.query(("1200> PRES > 600 \
+                        & HR in [2, 8, 14, 20]"))
                 if len(valid_pressure) == 4:
                     avg_pres = valid_pressure["PRES"].mean()
                     max_pres = valid_pressure["PRES"].max()
@@ -279,13 +286,16 @@ class Surf4HoursTool(ToolBase):
                     avg_pres = 999999
                     max_pres = 999999
                     min_pres = 999999
-                    self._logger.error(("{1}-{2:0>2d}-{3:0>2d},  "
-                                        "Station {0} miss pressure at"
-                                        "[02, 08, 14, 20]")
-                                       .format(sid, dt.year, dt.month, dt.day))
+                    # self._logger.error(("{1}-{2:0>2d}-{3:0>2d},  "
+                    #                    "Station {0} miss pressure at"
+                    #                     "[02, 08, 14, 20]")
+                    #                    .format(sid, dt.year,
+                    #                       dt.month, dt.day))
 
             # statistics temperature
-            valid_temperature = hours24.query("60 > TEMP > -60")
+            # valid_temperature = hours24.query("60 > TEMP > -60")
+            valid_temperature = hours24.query("60> TEMP > -60 \
+                                            & HR in [2, 8, 14, 20]")
             # print(valid_temperature)
             if len(valid_temperature) == 24:
                 # ok for 24 hours
@@ -303,10 +313,11 @@ class Surf4HoursTool(ToolBase):
                     avg_temp = 999999
                     max_temp = 999999
                     min_temp = 999999
-                    self._logger.error(("{1}-{2:0>2d}-{3:0>2d},  "
-                                        "Station {0} miss temperature at"
-                                        "[02, 08, 14, 20]")
-                                       .format(sid, dt.year, dt.month, dt.day))
+                    # self._logger.error(("{1}-{2:0>2d}-{3:0>2d},  "
+                    #                    "Station {0} miss temperature at"
+                    #                    "[02, 08, 14, 20]")
+                    #                   .format(sid, dt.year,
+                    #                       dt.month, dt.day))
 
             # statistics precipation
             valid_prec = hours24.query("200 > PREC >= 0")
@@ -364,7 +375,11 @@ class Surf4HoursTool(ToolBase):
         result = []
         # todo: do config the range of loop
 
-        for year in range(2010, 2020):
+        y_series = db["YEAR"]
+        year_begin = y_series.min()
+        year_end = y_series.max() + 1
+
+        for year in range(year_begin, year_end):
             for mon in range(1, 13):
                 cond = "YEAR == {0} & MON == {1}".format(year, mon)
                 recs = db.query(cond)
@@ -396,9 +411,9 @@ class Surf4HoursTool(ToolBase):
                 avg_pres = 999999
                 max_pres = 999999
                 min_pres = 999999
-                self._logger.error(("{1}-{2:0>2d},  "
-                                    "Station {0} miss pressure.")
-                                   .format(sid, year, mon))
+                # self._logger.error(("{1}-{2:0>2d},  "
+                #                     "Station {0} miss pressure.")
+                #                    .format(sid, year, mon))
 
             # statistics temperature
             valid_temperature = recs.query("60 > AVG_TEMP > -60")
@@ -411,9 +426,9 @@ class Surf4HoursTool(ToolBase):
                 avg_temp = 999999
                 max_temp = 999999
                 min_temp = 999999
-                self._logger.error(("{1}-{2:0>2d},  "
-                                    "Station {0} miss temperature")
-                                   .format(sid, year, mon,))
+                # self._logger.error(("{1}-{2:0>2d},  "
+                #                     "Station {0} miss temperature")
+                #                    .format(sid, year, mon,))
 
             # statistics precipation
             valid_prec = recs.query("500 > PREC24 >= 0")
@@ -446,11 +461,16 @@ class Surf4HoursTool(ToolBase):
 
     def stasticsYearSingleStatation(self, sid, srcPath, targetPath):
         db = pd.read_table(srcPath, skip_blank_lines=True,
-                           delim_whitespace=True, index_col=["YEAR", "MON"])
+                           delim_whitespace=True)
         result = []
         # todo: do config the range of loop
+        y_series = db["YEAR"]
+        year_begin = y_series.min()
+        year_end = y_series.max() + 1
+        # year_begin = 2015
+        # year_end = 2016
 
-        for year in range(2010, 2020):
+        for year in range(year_begin, year_end):
             cond = "YEAR == {0}".format(year)
             recs = db.query(cond)
             if not recs.empty:
@@ -480,8 +500,8 @@ class Surf4HoursTool(ToolBase):
                 avg_pres = 999999
                 max_pres = 999999
                 min_pres = 999999
-                self._logger.error(("{1}, Station {0} miss pressure.")
-                                   .format(sid, year))
+                # self._logger.error(("{1}, Station {0} miss pressure.")
+                #                    .format(sid, year))
 
             # statistics temperature
             valid_temperature = recs.query("60 > AVG_TEMP > -60")
@@ -493,8 +513,8 @@ class Surf4HoursTool(ToolBase):
                 avg_temp = 999999
                 max_temp = 999999
                 min_temp = 999999
-                self._logger.error(("{1}, Station {0} miss temperature")
-                                   .format(sid, year))
+                # self._logger.error(("{1}, Station {0} miss temperature")
+                #                    .format(sid, year))
 
             # statistics precipation
             valid_prec = recs.query("5000 > PREC_MON >= 0")

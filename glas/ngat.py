@@ -1,3 +1,4 @@
+import pdb; pdb.set_trace()  # XXX BREAKPOINT
 #!D:/Python27/python.exe
 #coding=utf-8
 
