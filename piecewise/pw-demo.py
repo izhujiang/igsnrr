@@ -140,27 +140,30 @@ def calculateCeofsByPiece(x, y, yp, cc):
     return rs, p_values
 
 
-def exportResult(filepath, psRes, df):
+def exportResult(filepath, pwResArr, df):
     msgs = []
-    msg = "break points: {0}\n".format(psRes.breaks)
-    msgs.append(msg)
-    msg = "reg_coef: {0}\n".format(psRes.regcoefs)
-    msgs.append(msg)
-    msg = "general correlation coefficient: {0}\n".format(psRes.generalCorcoef)
-    msgs.append(msg)
-    msg = "general correlation p_values : {0}\n".format(psRes.generalPvalue)
-    msgs.append(msg)
-    msg = "cor_coef_piecewise: {0}\n".format(psRes.psCorcoefs)
-    msgs.append(msg)
-    msg = "p_values_piecewise: {0}\n".format(psRes.psPvalues)
-    msgs.append(msg)
-
-    for msg in msgs:
-        print(msg)
-
-
+    for item in pwResArr:
+        msg = "variable: {0}\n".format(item["name"])
+        msgs.append(msg)
+        psRes = item["value"]
+        msg = "break points: {0}\n".format(psRes.breaks)
+        msgs.append(msg)
+        msg = "reg_coef: {0}\n".format(psRes.regcoefs)
+        msgs.append(msg)
+        msg = "general correlation coefficient: {0}\n".format(psRes.generalCorcoef)
+        msgs.append(msg)
+        msg = "general correlation p_values : {0}\n".format(psRes.generalPvalue)
+        msgs.append(msg)
+        msg = "cor_coef_piecewise: {0}\n".format(psRes.psCorcoefs)
+        msgs.append(msg)
+        msg = "p_values_piecewise: {0}\n".format(psRes.psPvalues)
+        msgs.append(msg)
+        msgs.append("\n")
+    # for msg in msgs:
+    #     print(msg)
     with open(filepath, "w") as fo:
         fo.writelines(msgs)
+
     filepath = filepath.replace(".", ".det.")
     
     df.to_csv(filepath, sep="\t", index=False, float_format='%10.6f')
@@ -202,11 +205,14 @@ if __name__ == "__main__":
         ceofDiffEpsilon=0.0000001,
         debugLevel=0,
     )
-
+    
+    x = da[:, 0]
+    xName = df.columns[0]
+    dfRes = pd.DataFrame(data = {
+        xName: x})
+    pwResArr = [None] * (ncol-1)
     for j in range(1, ncol):
-        x = da[:, 0]
         y = da[:, j]
-        xName = df.columns[0]
         yName = df.columns[j]
         yNamePred = df.columns[j] + "_PRED"
 
@@ -217,13 +223,13 @@ if __name__ == "__main__":
             model = pwlfm.PieceWiseLinearFitModel(x,y)
         
         pwRes = doPieceWise(model, x, y, ctx)
-
-        reuslt_filepath = input_filepath.replace(".","_res_{0}.".format(yName))
-        dfRes = pd.DataFrame(data = {
-            xName: x,  
-            yName: y, 
-            yNamePred: pwRes.yPred }).convert_dtypes()
-        exportResult(reuslt_filepath, pwRes, dfRes)
+        pwResArr[j-1] = {"name": yName, "value":pwRes}
+        dfRes[yName] =  y
+        dfRes[yNamePred] = pwRes.yPred
 
         imgPath = input_filepath.replace(".txt","_res_{0}.png".format(yName))
         exportImage(model, x, y, pwRes.breaks, imgPath)
+    
+    reuslt_filepath = input_filepath.replace(".","_res.".format(yName))
+    dfRes = dfRes.convert_dtypes()
+    exportResult(reuslt_filepath, pwResArr, dfRes)
