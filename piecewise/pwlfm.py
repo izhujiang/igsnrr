@@ -43,8 +43,8 @@ class PieceWiseLinearFitModel:
             minLastBreak = self.t[1]
 
         if numSegCount <= 1:
-            self.fit_breaks = np.array([self.t[0], self.t[-1]])
-            self.fit_with_breaks([self.t[0], self.t[-1]])
+            c = np.concatenate((self.t[:1], self.t[-1:]), axis=0)
+            self.fit_with_breaks(c)
             return 
 
         # print(potentialBreaks)

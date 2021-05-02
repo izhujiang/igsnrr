@@ -199,7 +199,7 @@ if __name__ == "__main__":
     da = df.to_numpy()
     ctx = PieceWiseLinearRegressionContext(
         recordNumber=nrow,
-        minSegmentCount=2,
+        minSegmentCount=1,
         maxSegmentCount=4,
         ceofThreshold=0.99,
         ceofDiffEpsilon=0.0000001,
@@ -227,9 +227,9 @@ if __name__ == "__main__":
         dfRes[yName] =  y
         dfRes[yNamePred] = pwRes.yPred
 
-        imgPath = input_filepath.replace(".txt","_res_{0}.png".format(yName))
+        imgPath = input_filepath.replace(".txt", "_res_{0}.png".format(yName))
         exportImage(model, x, y, pwRes.breaks, imgPath)
     
-    reuslt_filepath = input_filepath.replace(".","_res.".format(yName))
+    reuslt_filepath = input_filepath.replace(".", "_res.")
     dfRes = dfRes.convert_dtypes()
     exportResult(reuslt_filepath, pwResArr, dfRes)
