@@ -1,20 +1,19 @@
 #!/usr/bin/env python3
 import os
+import glob
 
 
-def download_glass(product, h, v):
-    lf = "url.txt"
-    root = "http://www.glass.umd.edu/{PP}/MODIS/1km/".format(PP=product)
+def download_glass(product, h, v, output):
+    # lf = "url.txt"
+    root = "http://www.glass.umd.edu/{PP}/MODIS/1km".format(PP=product)
     prefix = productPrefix(product)
     filePattern = "{PREFIX}.A{YYYY}{DDD}.h{HH}v{VV}.{PD}.{SS}"
-    pathPattern = "{ROOT}/{YYYY}/{DDD}/{FFF}\n"
-    outRoot = "/Users/hurricane/workspace/igsnrr/data/glass/{PP}".format(
-            PP=product)
+    pathPattern = "{ROOT}/{YYYY}/{DDD}/{FFF}"
 
     lines = []
     suffix = productSuffix(product)
 
-    for year in range(2000, 2019):
+    for year in range(2005, 2019):
         for d in range(46):
             day = "{:>03d}".format(d*8 + 1)
             pd = producedYD(product, year, int(day))
@@ -24,20 +23,30 @@ def download_glass(product, h, v):
                         YYYY=year, DDD=day,
                         HH=h, VV=v,
                         PD=pd, SS=ss)
-                fp = pathPattern.format(ROOT=root, YYYY=year, DDD=day, FFF=f)
-                lines.append(fp)
+                rfp = pathPattern.format(ROOT=root, YYYY=year, DDD=day, FFF=f)
+                lfp = pathPattern.format(
+                        ROOT=output, YYYY=year, DDD=day, FFF=f)
+                # lines.append("{0} -P {1}".format(rfp, lfp))
+                lines.append("{0}\n".format(rfp))
 
-    outDir = "{ROOT}/h{HH}v{VV}".format(ROOT=outRoot, HH=h, VV=v)
-    if not os.path.exists(outDir):
-        os.makedirs(outDir)
+                if not os.path.exists(os.path.dirname(lfp)):
+                    os.makedirs(os.path.dirname(lfp))
 
-    lf = outDir + "/" + lf
-    with open(lf, "w") as fo:
-        fo.writelines(lines)
+                cmd = "wget -c {0} -O {1}".format(rfp, lfp)
+                os.system(cmd)
 
-    getDataWithWget = "wget -i {0} -P {1}".format(lf, outDir)
+    # outDir = "{ROOT}/h{HH}v{VV}".format(ROOT=outRoot, HH=h, VV=v)
+    # outDir = "{ROOT}/h{HH}v{VV}".format(ROOT=outRoot, HH=h, VV=v)
+    # if not os.path.exists(output):
+    #     os.makedirs(output)
+
+    # lf = os.path.join(output, lf)
+    # with open(lf, "w") as fo:
+    #     fo.writelines(lines)
+
+    # getDataWithWget = "wget -i {0}".format(lf)
     # print(getDataWithWget)
-    os.system(getDataWithWget)
+    # os.system(getDataWithWget)
 
 
 # helper functions
@@ -75,9 +84,28 @@ def producedYD(product, year, ddd):
         return 0
 
 
+def removeInvalidFiles(rootDir, pattern="*.hdf"):
+    files = []
+    for root, dirnames, filenames in os.walk(rootDir):
+        # print(root, dirnames, filenames)
+        # print(root + pattern)
+        files.extend(glob.glob(root + "/" + pattern))
+
+    for fp in files:
+        fs = os.stat(fp).st_size / 1024
+        if fs <= 200:
+            print(fp, fs)
+            os.remove(fp)
+
+
 if __name__ == "__main__":
     h = "25"
-    v = "04"
+    v = "05"
+    product = "LAI"
+    # or
+    # product = "ET"
+    outputDir = "/Users/hurricane/share/glass/{0}".format(
+            product)
 
-    # download_glass("ET", h, v)
-    download_glass("LAI", h, v)
+    # download_glass(product, h, v, outputDir)
+    removeInvalidFiles(outputDir, "*.hdf")
