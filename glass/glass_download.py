@@ -1,63 +1,52 @@
 #!/usr/bin/env python3
 import os
-import glob
+# import glob
 
 
-def download_glass(product, h, v, output):
+def download_glass(product, h, v, years, output):
     # lf = "url.txt"
-    root = "http://www.glass.umd.edu/{PP}/MODIS/1km".format(PP=product)
-    prefix = productPrefix(product)
-    filePattern = "{PREFIX}.A{YYYY}{DDD}.h{HH}v{VV}.{PD}.{SS}"
-    pathPattern = "{ROOT}/{YYYY}/{DDD}/{FFF}"
+    remoteRoot = "http://www.glass.umd.edu/{PP}/MODIS/1km".format(PP=product)
+    rpathPattern = "{REMOTE_ROOT}/{YYYY}/"
+    lpathPattern = "{LOCAL_ROOT}/h{HH}v{VV}/{YYYY}"
 
-    lines = []
-    suffix = productSuffix(product)
+    # wget -r -nd -P /Users/hurricane/share/glass/ET/h25v04/2013 --no-parent
+    # -A '*.h25v04.*.hdf,*.h25v04.*.hdf.jpg,*.h25v04.*.hdf.xml'
+    # --reject-regex '(.*)\?(.*)' http://www.glass.umd.edu/ET/MODIS/1km/2013/
+    cmdPatten = (
+            "wget -r -nd -P {LocalDir} -np -A '{AcceptList}' "
+            "--reject-regex \'(.*)\\?(.*)\' {RemoteDir}"
+            )
 
-    for year in range(2005, 2019):
-        for d in range(46):
-            day = "{:>03d}".format(d*8 + 1)
-            pd = producedYD(product, year, int(day))
-            for ss in suffix:
-                f = filePattern.format(
-                        PREFIX=prefix,
-                        YYYY=year, DDD=day,
-                        HH=h, VV=v,
-                        PD=pd, SS=ss)
-                rfp = pathPattern.format(ROOT=root, YYYY=year, DDD=day, FFF=f)
-                lfp = pathPattern.format(
-                        ROOT=output, YYYY=year, DDD=day, FFF=f)
-                # lines.append("{0} -P {1}".format(rfp, lfp))
-                lines.append("{0}\n".format(rfp))
+    accListPatterns = ",".join([
+            "*.h{HH}v{VV}.*." + suffix for suffix in productSuffix(product)])
 
-                if not os.path.exists(os.path.dirname(lfp)):
-                    os.makedirs(os.path.dirname(lfp))
-
-                cmd = "wget -c {0} -O {1}".format(rfp, lfp)
-                os.system(cmd)
-
-    # outDir = "{ROOT}/h{HH}v{VV}".format(ROOT=outRoot, HH=h, VV=v)
-    # outDir = "{ROOT}/h{HH}v{VV}".format(ROOT=outRoot, HH=h, VV=v)
-    # if not os.path.exists(output):
-    #     os.makedirs(output)
-
-    # lf = os.path.join(output, lf)
-    # with open(lf, "w") as fo:
-    #     fo.writelines(lines)
-
-    # getDataWithWget = "wget -i {0}".format(lf)
-    # print(getDataWithWget)
-    # os.system(getDataWithWget)
+    # print(accListPatterns)
+    # print(years)
+    for year in range(years["start"], years["end"]):
+        # for d in range(46):
+        # day = "{:>03d}".format(d*8 + 1)
+        localDir = lpathPattern.format(
+                LOCAL_ROOT=output, HH=h, VV=v,  YYYY=year)
+        acclist = accListPatterns.format(HH=h, VV=v)
+        remoteDir = rpathPattern.format(
+                REMOTE_ROOT=remoteRoot, YYYY=year)
+        cmd = cmdPatten.format(
+                LocalDir=localDir,
+                AcceptList=acclist,
+                RemoteDir=remoteDir)
+        print(cmd)
+        os.system(cmd)
 
 
 # helper functions
-def productPrefix(product):
-    if product == "LAI":
-        return "GLASS01E01.V50"
-    elif product == "ET":
-        return "GLASS11A01.V42"
-    else:
-        print("invad product")
-        return ""
+# def productPrefix(product):
+#     if product == "LAI":
+#         return "GLASS01E01.V50"
+#     elif product == "ET":
+#         return "GLASS11A01.V42"
+#     else:
+#         print("invad product")
+#         return ""
 
 
 def productSuffix(product):
@@ -70,42 +59,51 @@ def productSuffix(product):
         return []
 
 
-def producedYD(product, year, ddd):
-    if product == "LAI":
-        return 2020323
-    elif product == "ET":
-        d = year * 1000 + ddd
-        if d <= 2007033:
-            return 2019311
-        else:
-            return 2019312
-    else:
-        print("invad product")
-        return 0
+# def producedYD(product, year, ddd):
+#     if product == "LAI":
+#         return 2020323
+#     elif product == "ET":
+#         d = year * 1000 + ddd
+#         if d <= 2007033:
+#             return 2019311
+#         else:
+#             return 2019312
+#     else:
+#         print("invad product")
+#         return 0
 
 
-def removeInvalidFiles(rootDir, pattern="*.hdf"):
-    files = []
-    for root, dirnames, filenames in os.walk(rootDir):
-        # print(root, dirnames, filenames)
-        # print(root + pattern)
-        files.extend(glob.glob(root + "/" + pattern))
+# def removeInvalidFiles(rootDir, pattern="*.hdf"):
+#     files = []
+#     for root, dirnames, filenames in os.walk(rootDir):
+#         # print(root, dirnames, filenames)
+#         # print(root + pattern)
+#         files.extend(glob.glob(root + "/" + pattern))
 
-    for fp in files:
-        fs = os.stat(fp).st_size / 1024
-        if fs <= 200:
-            print(fp, fs)
-            os.remove(fp)
+#     for fp in files:
+#         fs = os.stat(fp).st_size / 1024
+#         if fs <= 200:
+#             print(fp, fs)
+#             os.remove(fp)
 
 
 if __name__ == "__main__":
-    h = "25"
-    v = "05"
-    product = "LAI"
+    # h = "23"
+    # v = "04"
+
+    # product = "LAI"
     # or
-    # product = "ET"
+    product = "ET"
     outputDir = "/Users/hurricane/share/glass/{0}".format(
             product)
+    # data in [start, end), for example:
+    # years = [start=2013, end=2014) presents data in year 2013
+    years = dict(start=2000, end=2019)
 
-    # download_glass(product, h, v, outputDir)
-    removeInvalidFiles(outputDir, "*.hdf")
+    hvs = [
+            ("23", "04"),
+            ("23", "05"),
+            ("25", "04")]
+    for hv in hvs:
+        (h, v) = hv
+        download_glass(product, h, v, years, outputDir)
