@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import os
 # import glob
+import re
+import shutil
 
 
 def download_glass(product, h, v, years, output):
@@ -9,6 +11,7 @@ def download_glass(product, h, v, years, output):
     rpathPattern = "{REMOTE_ROOT}/{YYYY}/"
     lpathPattern = "{LOCAL_ROOT}/h{HH}v{VV}/{YYYY}"
 
+    # wget usage:
     # wget -r -nd -P /Users/hurricane/share/glass/ET/h25v04/2013 --no-parent
     # -A '*.h25v04.*.hdf,*.h25v04.*.hdf.jpg,*.h25v04.*.hdf.xml'
     # --reject-regex '(.*)\?(.*)' http://www.glass.umd.edu/ET/MODIS/1km/2013/
@@ -20,13 +23,14 @@ def download_glass(product, h, v, years, output):
     accListPatterns = ",".join([
             "*.h{HH}v{VV}.*." + suffix for suffix in productSuffix(product)])
 
-    # print(accListPatterns)
-    # print(years)
     for year in range(years["start"], years["end"]):
-        # for d in range(46):
-        # day = "{:>03d}".format(d*8 + 1)
-        localDir = lpathPattern.format(
-                LOCAL_ROOT=output, HH=h, VV=v,  YYYY=year)
+        if h != "*" and v != "*":
+            localDir = lpathPattern.format(
+                    LOCAL_ROOT=output, HH=h, VV=v,  YYYY=year)
+        else:
+            localDir = lpathPattern.format(
+                    LOCAL_ROOT=output, HH="", VV="",  YYYY=year)
+
         acclist = accListPatterns.format(HH=h, VV=v)
         remoteDir = rpathPattern.format(
                 REMOTE_ROOT=remoteRoot, YYYY=year)
@@ -39,14 +43,24 @@ def download_glass(product, h, v, years, output):
 
 
 # helper functions
-# def productPrefix(product):
-#     if product == "LAI":
-#         return "GLASS01E01.V50"
-#     elif product == "ET":
-#         return "GLASS11A01.V42"
-#     else:
-#         print("invad product")
-#         return ""
+def rearrageDirectoryRree(rootDir, hv):
+    if hv != "*":
+        return
+    hvDir = os.path.join(rootDir, "hv")
+    for year in os.listdir(hvDir):
+        yPath = os.path.join(hvDir, year)
+        if os.path.isdir(yPath):
+            for f in os.listdir(yPath):
+                m = re.search(r"h\d+v\d+", f)
+                if m:
+                    match_hv = m.group(0)
+                    hvPath = os.path.join(yPath, match_hv)
+                    if not os.path.exists(hvPath):
+                        os.makedirs(hvPath)
+                    src = os.path.join(yPath, f)
+                    dest = os.path.join(hvPath, f)
+                    shutil.move(src, dest)
+                    print(match_hv, hvPath)
 
 
 def productSuffix(product):
@@ -59,38 +73,7 @@ def productSuffix(product):
         return []
 
 
-# def producedYD(product, year, ddd):
-#     if product == "LAI":
-#         return 2020323
-#     elif product == "ET":
-#         d = year * 1000 + ddd
-#         if d <= 2007033:
-#             return 2019311
-#         else:
-#             return 2019312
-#     else:
-#         print("invad product")
-#         return 0
-
-
-# def removeInvalidFiles(rootDir, pattern="*.hdf"):
-#     files = []
-#     for root, dirnames, filenames in os.walk(rootDir):
-#         # print(root, dirnames, filenames)
-#         # print(root + pattern)
-#         files.extend(glob.glob(root + "/" + pattern))
-
-#     for fp in files:
-#         fs = os.stat(fp).st_size / 1024
-#         if fs <= 200:
-#             print(fp, fs)
-#             os.remove(fp)
-
-
 if __name__ == "__main__":
-    # h = "23"
-    # v = "04"
-
     # product = "LAI"
     # or
     product = "ET"
@@ -98,12 +81,18 @@ if __name__ == "__main__":
             product)
     # data in [start, end), for example:
     # years = [start=2013, end=2014) presents data in year 2013
-    years = dict(start=2000, end=2019)
+    years = dict(start=2015, end=2017)
 
     hvs = [
             ("23", "04"),
             ("23", "05"),
             ("25", "04")]
+    # or download all scenes with ("*", "*")
+    # hvs = [("*", "*")]
+
     for hv in hvs:
         (h, v) = hv
         download_glass(product, h, v, years, outputDir)
+
+        if h == "*" and v == "*":
+            rearrageDirectoryRree(outputDir, "*")
