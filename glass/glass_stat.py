@@ -2,69 +2,65 @@ import os
 import glob
 import shutil
 import datetime
-
-# netcdf4 needs to be installed in your environment for this to work
-# import numpy as np
+from random import randint
 
 import arcpy
 # from arcpy import env
 # from arcpy.sa import *
 
 
-def calcYearlyValues(rootDir, product, h, v, year, resultDir):
-    pattern = "/*.A{YYYY}*.h{HH}v{VV}.*.hdf".format(YYYY=year, HH=h, VV=v)
-    curRootDir = os.path.join(rootDir, product, str(year))
-
+# input: 46 files(GLASS11A01.V42.A{YYYY}***.h{HH}v{VV}.*.hdf)
+# with same YYYY, HH and VV.
+def calcYearlyValues(inputDir, product, h, v, year, resultDir, tempDir):
     outputFilePattern = "{0}.YEARLY.A{1}.h{2}v{3}{4}.tif"
 
+    randNum = str(randint(0, 10000000))
     temp_tif1 = os.path.join(
-            resultDir,
-            "temp",
-            outputFilePattern.format(
-                productPrefix(product), year, h, v, "_p01"))
+        tempDir,
+        outputFilePattern.format(
+            productPrefix(product), year, h, v, "_" + randNum + "_p01"))
     temp_tif2 = os.path.join(
-                resultDir,
-                "temp",
-                outputFilePattern.format(
-                    productPrefix(product), year, h, v, "_p02"))
+        tempDir,
+        outputFilePattern.format(
+            productPrefix(product), year, h, v, "_" + randNum + "_p02"))
+
     outputFile = outputFilePattern.format(
             productPrefix(product),
             year, h, v, "")
     outputPath = (os.path.join(resultDir, outputFile))
 
-    files = []
-    for root, dirnames, filenames in os.walk(curRootDir):
-        files.extend(glob.glob(root + pattern))
-
+    files = glob.glob(os.path.join(inputDir, "*.hdf"))
     files.sort()
 
     count = len(files)
     if count != 46:
         print("error: only {} valid files found in {}".format(
-            count,  curRootDir))
+            count,  inputDir))
+        # caculate even less than 46 files
+        # return
+
+    if count < 23:
         return
 
     tempRaster = arcpy.sa.Times(files[0], 8)
-
     for i in range(1, count/2):
         f = files[i]
-        print(f)
+        # print(f)
         tempRaster = arcpy.sa.Plus(arcpy.sa.Times(f, 8), tempRaster)
     tempRaster.save(temp_tif1)
 
-    f = files[count/2]
-    print(f)
+    # f = files[count/2]
     tempRaster = arcpy.sa.Times(files[count/2], 8)
     for i in range(count/2+1, count-1):
         f = files[i]
-        print(f)
+        # print(f)
         tempRaster = arcpy.sa.Plus(arcpy.sa.Times(f, 8), tempRaster)
     tempRaster = arcpy.sa.Plus(
             arcpy.sa.Times(files[count-1], lastDays(year)),
             tempRaster)
     tempRaster.save(temp_tif2)
-
-    yearlyRaster = arcpy.sa.Plus(temp_tif1, temp_tif2)
+    scale = scaleOfProduct(product)
+    yearlyRaster = arcpy.sa.Times(arcpy.sa.Plus(temp_tif1, temp_tif2), scale)
     yearlyRaster.save(outputPath)
 
 
@@ -76,21 +72,18 @@ def lastDays(year):
     return dif_days
 
 
-def maximumByYear(rootDir, product, h, v, year, resultDir):
-    pattern = "/*.A{YYYY}*.h{HH}v{VV}.*.hdf".format(YYYY=year, HH=h, VV=v)
-    curRootDir = os.path.join(rootDir, product, str(year))
-
-    files = []
-    for root, dirnames, filenames in os.walk(curRootDir):
-        # print(root + pattern)
-        files.extend(glob.glob(root + pattern))
-
+def maximumByYear(inputDir, product, h, v, year, resultDir, tempDir):
+    files = glob.glob(os.path.join(inputDir, "*.hdf"))
     files.sort()
+    print(files)
 
     count = len(files)
-    if count <= 0:
-        print("error: {} valid files found in {}".format(
-            count,  curRootDir))
+    if count < 46:
+        print("error: only {} valid files found in {}".format(
+            count,  inputDir))
+        # caculate maximum even less than 46 files
+        # return
+    if count < 23:
         return
 
     inputRasters = []
@@ -142,59 +135,79 @@ def productPrefix(product):
         return ""
 
 
+def scaleOfProduct(product):
+    if product == "LAI":
+        return 0.1
+    elif product == "ET":
+        return 0.0003527
+    else:
+        print("invad product", product)
+        return 1
+
+
 if __name__ == "__main__":
 
     # # Check out the ArcGIS Spatial Analyst extension license
     # arcpy.CheckOutExtension("Spatial")
-
+    arcpy.env.overwriteOutput = True
     # process LAI or ET
     # http://www.glass.umd.edu/LAI/MODIS/1km/
     # http://www.glass.umd.edu/ET/MODIS/1km/
 
-    # rootDir = "/Users/hurricane/share/glass"
-    rootDir = "Z:\\share\\glass"
+    # product = "LAI"
+    # staticsType = "maxValue"
 
-    product = "LAI"
-    staticsType = "max"
+    product = "ET"
+    root = "Z:\\share\\glass"
+    inputRoot = os.path.join(root, product)
 
-    # product = "ET"
-    # staticsType = "yearly"
+    statisticsType = "yearlyValue"
 
+    years = dict(start=2013, end=2015)
     scenes = [
-            ("25", "04"),
+            ("23", "04"),
             # ("26", "04")
             ]
-    resultDir = os.path.join(rootDir, staticsType, product)
-    temp_dir = os.path.join(resultDir, "temp")
+    resultRoot = os.path.join(root, "statistics", product, statisticsType)
+    temp_dir = os.path.join(root, "temp")
 
-    if not os.path.exists(
-            os.path.join(rootDir, product)):
-        print("Invalid data directory", os.path.join(rootDir, product))
+    if not os.path.exists(inputRoot):
+        print("Invalid data directory", inputRoot)
 
-    if not os.path.exists(resultDir):
-        os.makedirs(resultDir)
-
+    if not os.path.exists(resultRoot):
+        os.makedirs(resultRoot)
     if not os.path.exists(temp_dir):
         os.makedirs(temp_dir)
 
-    for year in range(2000, 2019):
+    for year in range(years["start"], years["end"]):
         for hv in scenes:
             h, v = hv
-            print("processing {} {} h{} v{} year {}...".format(
-                product, staticsType, h, v, year))
-            if staticsType == "max":
+            hvPath = "h{0}v{1}".format(h, v)
+            inputDir = os.path.join(inputRoot, hvPath, str(year))
+            outputDir = os.path.join(resultRoot, hvPath)
+
+            print(inputDir, hvPath, str(year))
+            print(outputDir)
+            if not os.path.exists(outputDir):
+                os.makedirs(outputDir)
+            print("processing {0} {1} h:{2} v:{3} year:{4}...".format(
+                product, statisticsType, h, v, year))
+            if statisticsType == "maxValue":
                 maximumByYear(
-                        rootDir,
-                        product,
-                        h, v,
-                        year, resultDir)
-            elif staticsType == "yearly":
-                calcYearlyValues(
-                        rootDir,
+                        inputDir,
                         product,
                         h, v,
                         year,
-                        resultDir)
+                        outputDir,
+                        temp_dir)
+            elif statisticsType == "yearlyValue":
+                calcYearlyValues(
+                        inputDir,
+                        product,
+                        h, v,
+                        year,
+                        outputDir,
+                        temp_dir)
 
     try:
         shutil.rmtree(temp_dir)
