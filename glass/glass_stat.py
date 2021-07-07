@@ -38,8 +38,8 @@ def calcYearlyValues(inputDir, product, h, v, year, resultDir, tempDir):
     if count < 23:
         print("error: only {} valid files found in {}".format(
             count,  inputDir))
-        return 
-    if count >=23 and count < 46:
+        return
+    if count >= 23 and count < 46:
         print("warning: {} valid files found in {}".format(
             count,  inputDir))
         # caculate even less than 46 files
@@ -59,7 +59,7 @@ def calcYearlyValues(inputDir, product, h, v, year, resultDir, tempDir):
         tempRaster = arcpy.sa.Plus(arcpy.sa.Times(f, 8), tempRaster)
 
     f = files[count-1]
-    m = re.search("\d{4}361", f)
+    m = re.search(r"\d{4}361", f)
     if m:
         daysInLastRaster = lastDays(year)
     else:
@@ -90,7 +90,7 @@ def maximumByYear(inputDir, product, h, v, year, resultDir, tempDir):
     if count < 23:
         print("error: only {} valid files found in {}".format(
             count,  inputDir))
-        return 
+        return
     if count < 46:
         print("warning: {} valid files found in {}".format(
             count,  inputDir))
@@ -162,30 +162,27 @@ if __name__ == "__main__":
     # http://www.glass.umd.edu/LAI/MODIS/1km/
     # http://www.glass.umd.edu/ET/MODIS/1km/
 
-    
     # --------------------------------------------------------------
     # Input parameters:
 
     # product = "LAI"
-    # staticsType = "maxValue"
-
     product = "ET"
     statisticsType = "yearlyValue"
     # statisticsType = "maxValue"
-    processByHv =True
+    processByHv = True
 
     root = "Z:/share/glass"
     inputRoot = os.path.join(root, product)
     outputRoot = os.path.join(root, "statistics", product, statisticsType)
     temp_dir = os.path.join(root, "temp")
 
-    # or 
+    # or
     # inputRoot = "Z:/share/glass/" + product + "/hv"
-    # outputRoot =  "Z:/share/glass/statistics/" +  product + "/" + statisticsType
+    # outputRoot ="Z:/share/glass/statistics/" + product + "/" + statisticsType
     # temp_dir = "Z:/share/glass/" + "temp"
-    
     # -------------------------------------------------------------
-    if processByHv == True:
+
+    if processByHv is True:
         dirStructPattern = "/h??v??/????/"
         rePattern = r'h(\d+)v(\d+)[\\\/](\d+)'
     else:
@@ -200,7 +197,6 @@ if __name__ == "__main__":
     if not os.path.exists(temp_dir):
         os.makedirs(temp_dir)
 
-    
     for path in glob.glob(inputRoot + dirStructPattern):
         # print(path)
         m = re.search(rePattern, path)
@@ -208,7 +204,7 @@ if __name__ == "__main__":
             # print(m.group(1), m.group(2), m.group(3))
             if processByHv:
                 h = m.group(1)
-                v =  m.group(2)
+                v = m.group(2)
                 year = m.group(3)
                 hvPath = "h{0}v{1}".format(h, v)
                 inputDir = os.path.join(inputRoot, hvPath, year)
@@ -216,14 +212,14 @@ if __name__ == "__main__":
             else:
                 year = m.group(1)
                 h = m.group(2)
-                v =  m.group(3)
+                v = m.group(3)
                 hvPath = "h{0}v{1}".format(h, v)
                 inputDir = os.path.join(inputRoot, year, hvPath)
                 outputDir = os.path.join(outputRoot, year)
 
             if not os.path.exists(outputDir):
                 os.makedirs(outputDir)
-            print("processing {0}: caculate {1}, h:{2}, v:{3}, year:{4}...".format(
+            print("processing {0}: {1}, h:{2}, v:{3}, year:{4}...".format(
                 product, statisticsType, h, v, year))
             print(hvPath, str(year), inputDir, outputDir)
 
