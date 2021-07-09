@@ -14,10 +14,10 @@ def download_glass(product, h, v, years, output):
     # wget usage:
     # wget -r -nd -P /Users/hurricane/share/glass/ET/h25v04/2013 --no-parent
     # -A '*.h25v04.*.hdf,*.h25v04.*.hdf.jpg,*.h25v04.*.hdf.xml'
-    # --reject-regex '(.*)\?(.*)' http://www.glass.umd.edu/ET/MODIS/1km/2013/
+    # --reject-regex=".*\?.*" http://www.glass.umd.edu/ET/MODIS/1km/2013/
     cmdPatten = (
-            "wget -r -nd -P {LocalDir} -np -A '{AcceptList}' "
-            "--reject-regex \'(.*)\\?(.*)\' {RemoteDir}"
+            "wget -r -nd -P {LocalDir} -np -A \"{AcceptList}\" "
+            "--reject-regex=\".*\\?.*\" {RemoteDir}"
             )
 
     accListPatterns = ",".join([
@@ -74,22 +74,38 @@ def productSuffix(product):
 
 
 if __name__ == "__main__":
+    # --!!! Import  ----------------------
+    # make sure: wget's version >= 1.20 and --reject-regex option
+    # using (wget -V) and (wget --help) commands
+    # -A,  --accept=LIST           comma-separated list of accepted extensions
+    # -R,  --reject=LIST           comma-separated list of rejected extensions
+    #  --accept-regex=REGEX        regex matching accepted URLs
+    #  --reject-regex=REGEX        regex matching rejected URL
+    # DOWNLOAD wget for window from https://eternallybored.org/misc/wget/
+    # NOT http://gnuwin32.sourceforge.net/packages/wget.htm , version 1.11.4
+    # -------------------------------------
+    # Input Parameters:
+
     # product = "LAI"
     # or
     product = "ET"
     outputDir = "/Users/hurricane/share/glass/{0}".format(
             product)
+    # or
+    # outputDir = "Z:/share/glass/ET2/"
+
     # data in [start, end), for example:
     # years = [start=2013, end=2014) presents data in year 2013
-    years = dict(start=2015, end=2017)
+    years = dict(start=2017, end=2019)
 
     hvs = [
-            ("23", "04"),
-            ("23", "05"),
+            # ("23", "04"),
+            # ("23", "05"),
             ("25", "04")]
     # or download all scenes with ("*", "*")
     # hvs = [("*", "*")]
 
+    # --------------------------------------------
     for hv in hvs:
         (h, v) = hv
         download_glass(product, h, v, years, outputDir)
