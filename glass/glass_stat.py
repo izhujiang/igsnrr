@@ -44,19 +44,28 @@ def calcYearlyValues(inputDir, product, h, v, year, resultDir, tempDir):
             count,  inputDir))
         # caculate even less than 46 files
 
-    tempRaster = arcpy.sa.Times(files[0], 8)
-    for i in range(1, count/2):
-        f = files[i]
-        # print(f)
-        tempRaster = arcpy.sa.Plus(arcpy.sa.Times(f, 8), tempRaster)
+    ignore_nodata = "DATA"
+    # ignore_nodata = "NODATA"
+
+    # tempRaster = arcpy.sa.Times(files[0], 8)
+    # for i in range(1, count/2):
+    #     f = files[i]
+    #     # print(f)
+    #     tempRaster = arcpy.sa.Plus(arcpy.sa.Times(f, 8), tempRaster)
+    tempRaster = arcpy.sa.Times(
+            arcpy.sa.CellStatistics(files[:count/2], "SUM", ignore_nodata),
+            8)
     tempRaster.save(temp_tif1)
 
     # f = files[count/2]
-    tempRaster = arcpy.sa.Times(files[count/2], 8)
-    for i in range(count/2+1, count-1):
-        f = files[i]
-        # print(f)
-        tempRaster = arcpy.sa.Plus(arcpy.sa.Times(f, 8), tempRaster)
+    # tempRaster = arcpy.sa.Times(files[count/2], 8)
+    # for i in range(count/2+1, count-1):
+    #     f = files[i]
+    #     # print(f)
+    #     tempRaster = arcpy.sa.Plus(arcpy.sa.Times(f, 8), tempRaster)
+    tempRaster = arcpy.sa.Times(
+            arcpy.sa.CellStatistics(files[count/2: count-1], "SUM", ignore_nodata),
+            8)
 
     f = files[count-1]
     m = re.search(r"\d{4}361", f)
@@ -64,12 +73,21 @@ def calcYearlyValues(inputDir, product, h, v, year, resultDir, tempDir):
         daysInLastRaster = lastDays(year)
     else:
         daysInLastRaster = 8
-    tempRaster = arcpy.sa.Plus(
-            arcpy.sa.Times(f, daysInLastRaster),
-            tempRaster)
+
+    tempRaster = arcpy.sa.CellStatistics(
+            [tempRaster, arcpy.sa.Times(f, daysInLastRaster)],
+            "SUM", ignore_nodata)
+
+    # tempRaster = arcpy.sa.Plus(
+    #         arcpy.sa.Times(f, daysInLastRaster),
+    #         tempRaster)
     tempRaster.save(temp_tif2)
+
     scale = scaleOfProduct(product)
-    yearlyRaster = arcpy.sa.Times(arcpy.sa.Plus(temp_tif1, temp_tif2), scale)
+    yearlyRaster = arcpy.sa.Times(
+            arcpy.sa.CellStatistics([temp_tif1, temp_tif2], "SUM", ignore_nodata),
+            scale)
+    # yearlyRaster = arcpy.sa.Times(arcpy.sa.Plus(temp_tif1, temp_tif2), scale)
     yearlyRaster.save(outputPath)
 
 
@@ -156,7 +174,7 @@ def scaleOfProduct(product):
 
 if __name__ == "__main__":
     # # Check out the ArcGIS Spatial Analyst extension license
-    # arcpy.CheckOutExtension("Spatial")
+    arcpy.CheckOutExtension("Spatial")
     arcpy.env.overwriteOutput = True
     # process LAI or ET
     # http://www.glass.umd.edu/LAI/MODIS/1km/
@@ -197,7 +215,9 @@ if __name__ == "__main__":
     if not os.path.exists(temp_dir):
         os.makedirs(temp_dir)
 
-    for path in glob.glob(inputRoot + dirStructPattern):
+    subDirs = glob.glob(inputRoot + dirStructPattern)
+    subDirs.sort()
+    for path in subDirs:
         # print(path)
         m = re.search(rePattern, path)
         if m:
