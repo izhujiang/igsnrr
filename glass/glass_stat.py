@@ -64,7 +64,9 @@ def calcYearlyValues(inputDir, product, h, v, year, resultDir, tempDir):
     #     # print(f)
     #     tempRaster = arcpy.sa.Plus(arcpy.sa.Times(f, 8), tempRaster)
     tempRaster = arcpy.sa.Times(
-            arcpy.sa.CellStatistics(files[count/2: count-1], "SUM", ignore_nodata),
+            arcpy.sa.CellStatistics(
+                files[count/2: count-1],
+                "SUM", ignore_nodata),
             8)
 
     f = files[count-1]
@@ -85,7 +87,9 @@ def calcYearlyValues(inputDir, product, h, v, year, resultDir, tempDir):
 
     scale = scaleOfProduct(product)
     yearlyRaster = arcpy.sa.Times(
-            arcpy.sa.CellStatistics([temp_tif1, temp_tif2], "SUM", ignore_nodata),
+            arcpy.sa.CellStatistics(
+                [temp_tif1, temp_tif2],
+                "SUM", ignore_nodata),
             scale)
     # yearlyRaster = arcpy.sa.Times(arcpy.sa.Plus(temp_tif1, temp_tif2), scale)
     yearlyRaster.save(outputPath)
@@ -172,6 +176,71 @@ def scaleOfProduct(product):
         return 1
 
 
+# assuming: inputRoot, outputRoot, temp_dir exist and valid
+def batach_statistics(
+        statisticsType,
+        inputRoot,
+        outputRoot,
+        temp_dir,
+        outputOrganizedByYearFirst):
+
+    subDirs = glob.glob(inputRoot + "/h??v??/????/")
+    subDirs.extend(glob.glob(inputRoot + "/????/h??v??/"))
+
+    subDirs.sort()
+    hvYearPattern = re.compile(r'h(\d+)v(\d+)[\\\/](\d+)')
+    yearHvPattern = re.compile(r'(\d+)[\\\/]h(\d+)v(\d+)')
+
+    for path in subDirs:
+        # print(path)
+        m = hvYearPattern.search(path)
+        if m:
+            # print(m.group(1), m.group(2), m.group(3))
+            h = m.group(1)
+            v = m.group(2)
+            year = m.group(3)
+            hvPath = "h{0}v{1}".format(h, v)
+            inputDir = os.path.join(inputRoot, hvPath, year)
+        else:
+            m = yearHvPattern.search(path)
+            if m:
+                year = m.group(1)
+                h = m.group(2)
+                v = m.group(3)
+                hvPath = "h{0}v{1}".format(h, v)
+                inputDir = os.path.join(inputRoot, year, hvPath)
+            else:
+                continue
+
+        if outputOrganizedByYearFirst:
+            outputDir = os.path.join(outputRoot, year)
+        else:
+            outputDir = os.path.join(outputRoot, hvPath)
+        if not os.path.exists(outputDir):
+            os.makedirs(outputDir)
+
+        print("processing {0}: {1}, h:{2}, v:{3}, year:{4}...".format(
+            product, statisticsType, h, v, year))
+        print(hvPath, str(year), inputDir, outputDir)
+
+        if statisticsType == "maxValue":
+            maximumByYear(
+                    inputDir,
+                    product,
+                    h, v,
+                    int(year),
+                    outputDir,
+                    temp_dir)
+        elif statisticsType == "yearlyValue":
+            calcYearlyValues(
+                    inputDir,
+                    product,
+                    h, v,
+                    int(year),
+                    outputDir,
+                    temp_dir)
+
+
 if __name__ == "__main__":
     # # Check out the ArcGIS Spatial Analyst extension license
     arcpy.CheckOutExtension("Spatial")
@@ -187,26 +256,20 @@ if __name__ == "__main__":
     product = "ET"
     statisticsType = "yearlyValue"
     # statisticsType = "maxValue"
-    processByHv = True
 
     root = "Z:/share/glass"
+
     inputRoot = os.path.join(root, product)
     outputRoot = os.path.join(root, "statistics", product, statisticsType)
+    outputOrganizedByYearFirst = True
     temp_dir = os.path.join(root, "temp")
 
     # or
     # inputRoot = "Z:/share/glass/" + product + "/hv"
     # outputRoot ="Z:/share/glass/statistics/" + product + "/" + statisticsType
+    # outputOrganizedByYearFirst = True
     # temp_dir = "Z:/share/glass/" + "temp"
     # -------------------------------------------------------------
-
-    if processByHv is True:
-        dirStructPattern = "/h??v??/????/"
-        rePattern = r'h(\d+)v(\d+)[\\\/](\d+)'
-    else:
-        dirStructPattern = "/????/h??v??/"
-        rePattern = r'(\d+)[\\\/]h(\d+)v(\d+)'
-
     if not os.path.exists(inputRoot):
         print("Invalid data directory", inputRoot)
 
@@ -215,50 +278,12 @@ if __name__ == "__main__":
     if not os.path.exists(temp_dir):
         os.makedirs(temp_dir)
 
-    subDirs = glob.glob(inputRoot + dirStructPattern)
-    subDirs.sort()
-    for path in subDirs:
-        # print(path)
-        m = re.search(rePattern, path)
-        if m:
-            # print(m.group(1), m.group(2), m.group(3))
-            if processByHv:
-                h = m.group(1)
-                v = m.group(2)
-                year = m.group(3)
-                hvPath = "h{0}v{1}".format(h, v)
-                inputDir = os.path.join(inputRoot, hvPath, year)
-                outputDir = os.path.join(outputRoot, hvPath)
-            else:
-                year = m.group(1)
-                h = m.group(2)
-                v = m.group(3)
-                hvPath = "h{0}v{1}".format(h, v)
-                inputDir = os.path.join(inputRoot, year, hvPath)
-                outputDir = os.path.join(outputRoot, year)
-
-            if not os.path.exists(outputDir):
-                os.makedirs(outputDir)
-            print("processing {0}: {1}, h:{2}, v:{3}, year:{4}...".format(
-                product, statisticsType, h, v, year))
-            print(hvPath, str(year), inputDir, outputDir)
-
-            if statisticsType == "maxValue":
-                maximumByYear(
-                        inputDir,
-                        product,
-                        h, v,
-                        int(year),
-                        outputDir,
-                        temp_dir)
-            elif statisticsType == "yearlyValue":
-                calcYearlyValues(
-                        inputDir,
-                        product,
-                        h, v,
-                        int(year),
-                        outputDir,
-                        temp_dir)
+    batach_statistics(
+            statisticsType,
+            inputRoot,
+            outputRoot,
+            temp_dir,
+            outputOrganizedByYearFirst)
 
     try:
         shutil.rmtree(temp_dir)
