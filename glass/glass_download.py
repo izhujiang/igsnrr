@@ -43,7 +43,7 @@ def download_glass(product, h, v, years, output):
 
 
 # helper functions
-def rearrageDirectoryRree(rootDir, hv):
+def rearrangeDirectories(rootDir, hv):
     if hv != "*":
         return
     hvDir = os.path.join(rootDir, "hv")
@@ -111,4 +111,4 @@ if __name__ == "__main__":
         download_glass(product, h, v, years, outputDir)
 
         if h == "*" and v == "*":
-            rearrageDirectoryRree(outputDir, "*")
+            rearrangeDirectories(outputDir, "*")
