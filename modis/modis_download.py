@@ -96,8 +96,8 @@ if __name__ == "__main__":
     # Requires a NASA Earthdata Login username and password.
     # To obtain a NASA Earthdata Login account, please visit
     # https://urs.earthdata.nasa.gov/users/new/.
-    user = "zhujiang007"
-    password = "Qwer1234"
+    user = "zj"
+    password = "1234"
 
     product_id = "MCD12Q1"
     product_version = "006"
