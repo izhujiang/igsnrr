@@ -94,6 +94,14 @@ def calcYearlyValues(inputDir, product, h, v, year, resultDir, tempDir):
     # yearlyRaster = arcpy.sa.Times(arcpy.sa.Plus(temp_tif1, temp_tif2), scale)
     yearlyRaster.save(outputPath)
 
+    try:
+        del tempRaster
+        del yearlyRaster
+        os.remove(temp_tif1)
+        os.remove(temp_tif2)
+    except OSError as e:
+        print("Error: %s" % (e.strerror))
+
 
 def lastDays(year):
     d2 = datetime.datetime(year + 1, 1, 1)
@@ -153,6 +161,14 @@ def maximumByYear(inputDir, product, h, v, year, resultDir, tempDir):
     resCellStatistics = arcpy.sa.CellStatistics(
             [temp_tif1, temp_tif2], "MAXIMUM", "DATA")
     resCellStatistics.save(outputPath)
+
+    try:
+        del temp
+        del resCellStatistics
+        os.remove(temp_tif1)
+        os.remove(temp_tif2)
+    except OSError as e:
+        print("Error: %s" % (e.strerror))
 
 
 # helper functions
