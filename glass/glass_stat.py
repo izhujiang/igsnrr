@@ -10,10 +10,10 @@ import arcpy
 # from arcpy import env
 # from arcpy.sa import *
 
-
+# calculate of the summary 
 # input: 46 files(GLASS11A01.V42.A{YYYY}***.h{HH}v{VV}.*.hdf)
 # with same YYYY, HH and VV.
-def calcYearlyValues(inputDir, product, h, v, year, resultDir, tempDir):
+def calcYearlyValues(files, product, h, v, year, resultDir, tempDir):
     outputFilePattern = "{0}.YEARLY.A{1}.h{2}v{3}{4}.tif"
 
     randNum = str(randint(0, 10000000))
@@ -30,42 +30,41 @@ def calcYearlyValues(inputDir, product, h, v, year, resultDir, tempDir):
             productPrefix(product),
             year, h, v, "")
     outputPath = (os.path.join(resultDir, outputFile))
-
-    files = glob.glob(os.path.join(inputDir, "*.hdf"))
+    
     files.sort()
-
     count = len(files)
     if count < 23:
-        print("error: only {} valid files found in {}".format(
-            count,  inputDir))
+        print("error: only {0} valid files found in year:{1} h:{2} v:{3}".format(
+            count,  year, h, v))
         return
     if count >= 23 and count < 46:
-        print("warning: {} valid files found in {}".format(
-            count,  inputDir))
+        print("warning: {0} valid files found in year:{1} h:{2} v:{3}".format(
+            count,  year, h, v))
         # caculate even less than 46 files
+
+    inputRasters = []
+    if product == "LAI":
+        filterRaster = filterLAIRaster
+    elif product == "ET":
+        filterRaster = filterETRaster
+    else:
+        filterRaster = defaultFilter
+
+    for f in files:
+        r = filterRaster(f)
+        inputRasters.append(r)
 
     ignore_nodata = "DATA"
     # ignore_nodata = "NODATA"
 
-    # tempRaster = arcpy.sa.Times(files[0], 8)
-    # for i in range(1, count/2):
-    #     f = files[i]
-    #     # print(f)
-    #     tempRaster = arcpy.sa.Plus(arcpy.sa.Times(f, 8), tempRaster)
     tempRaster = arcpy.sa.Times(
-            arcpy.sa.CellStatistics(files[:count/2], "SUM", ignore_nodata),
+            arcpy.sa.CellStatistics(inputRasters[:count/2], "SUM", ignore_nodata),
             8)
     tempRaster.save(temp_tif1)
 
-    # f = files[count/2]
-    # tempRaster = arcpy.sa.Times(files[count/2], 8)
-    # for i in range(count/2+1, count-1):
-    #     f = files[i]
-    #     # print(f)
-    #     tempRaster = arcpy.sa.Plus(arcpy.sa.Times(f, 8), tempRaster)
     tempRaster = arcpy.sa.Times(
             arcpy.sa.CellStatistics(
-                files[count/2: count-1],
+                inputRasters[count/2: count-1],
                 "SUM", ignore_nodata),
             8)
 
@@ -75,14 +74,12 @@ def calcYearlyValues(inputDir, product, h, v, year, resultDir, tempDir):
         daysInLastRaster = lastDays(year)
     else:
         daysInLastRaster = 8
+    lastRaster = inputRasters[count-1]
 
     tempRaster = arcpy.sa.CellStatistics(
-            [tempRaster, arcpy.sa.Times(f, daysInLastRaster)],
+            [tempRaster, arcpy.sa.Times(lastRaster, daysInLastRaster)],
             "SUM", ignore_nodata)
 
-    # tempRaster = arcpy.sa.Plus(
-    #         arcpy.sa.Times(f, daysInLastRaster),
-    #         tempRaster)
     tempRaster.save(temp_tif2)
 
     scale = scaleOfProduct(product)
@@ -110,26 +107,36 @@ def lastDays(year):
     dif_days = (d2 - d1).days - 8 * 45
     return dif_days
 
-
-def maximumByYear(inputDir, product, h, v, year, resultDir, tempDir):
-    files = glob.glob(os.path.join(inputDir, "*.hdf"))
+# maximiun 
+# input: 46 files(GLASS11A01.V42.A{YYYY}***.h{HH}v{VV}.*.hdf)
+# with same YYYY, HH and VV.
+def maximumByYear(files, product, h, v, year, resultDir, tempDir):
+    # file pattern "*A{year}*.h{h}v{v}*.hdf" for glass file likes GLASS01E01.V50.A2002001.h25v04.2020323.hdf
+    filepattern = "*A{year}*.h{h}v{v}*.hdf".format(year=year, h=h, v=v)
     files.sort()
-    # print(files)
 
     count = len(files)
     if count < 23:
-        print("error: only {} valid files found in {}".format(
-            count,  inputDir))
+        print("error: only {0} valid files found in year:{1} h:{2} v:{3}".format(
+            count,  year, h, v))
         return
     if count < 46:
-        print("warning: {} valid files found in {}".format(
-            count,  inputDir))
+        print("warning: {0} valid files found in year:{1} h:{2} v:{3}".format(
+            count,  year, h, v))
         # caculate maximum even less than 46 files
         # return
 
     inputRasters = []
+    if product == "LAI":
+        filterRaster = filterLAIRaster
+    elif product == "ET":
+        filterRaster = filterETRaster
+    else:
+        filterRaster = defaultFilter
+
     for f in files:
-        inputRasters.append(f)
+        r = filterRaster(f)
+        inputRasters.append(r)
     # inputRasters = [arcpy.Raster(f) for f in files]
     outputFilePattern = "{0}.MAX.A{1}.h{2}v{3}{4}.tif"
 
@@ -151,15 +158,25 @@ def maximumByYear(inputDir, product, h, v, year, resultDir, tempDir):
     # # Execute CellStatistics
     # outCellStatistics = CellStatistics([inRaster01, inRaster02, inRaster03],
     # "RANGE", "NODATA")
+    ignore_nodata = "DATA"
+    # ignore_nodata = "NODATA"
+
     half = len(files)/2
-    temp = arcpy.sa.CellStatistics(inputRasters[:half], "MAXIMUM", "DATA")
+    temp = arcpy.sa.CellStatistics(inputRasters[:half], "MAXIMUM", ignore_nodata)
     temp.save(temp_tif1)
 
-    temp = arcpy.sa.CellStatistics(inputRasters[half:], "MAXIMUM", "DATA")
+    temp = arcpy.sa.CellStatistics(inputRasters[half:], "MAXIMUM", ignore_nodata)
     temp.save(temp_tif2)
 
-    resCellStatistics = arcpy.sa.CellStatistics(
-            [temp_tif1, temp_tif2], "MAXIMUM", "DATA")
+    # resCellStatistics = arcpy.sa.CellStatistics(
+    #        [temp_tif1, temp_tif2], "MAXIMUM", "DATA")
+
+    scale = scaleOfProduct(product)
+    resCellStatistics = arcpy.sa.Times(
+            arcpy.sa.CellStatistics(
+            [temp_tif1, temp_tif2], "MAXIMUM", ignore_nodata),
+            scale)
+
     resCellStatistics.save(outputPath)
 
     try:
@@ -191,6 +208,26 @@ def scaleOfProduct(product):
         print("invad product", product)
         return 1
 
+# filter LAI raster
+def filterLAIRaster(raster):
+    inRaster = arcpy.Raster(raster)
+    inTrueRaster = inRaster
+    # inFalseConstant = 0
+    whereClause = "VALUE <= 100"
+
+    # Execute Con
+    outRaster = arcpy.sa.Con(inRaster, inTrueRaster, "", whereClause) 
+    return outRaster
+
+# todo: some filters with ET raster
+def filterETRaster(raster):
+    outRaster =arcpy.Raster(raster)
+    return outRaster
+
+# do nothing
+def defaultFilter(raster):
+    outRaster =arcpy.Raster(raster)
+    return outRaster
 
 # assuming: inputRoot, outputRoot, temp_dir exist and valid
 def batach_statistics(
@@ -199,49 +236,42 @@ def batach_statistics(
         outputRoot,
         temp_dir,
         outputOrganizedByYearFirst):
+    # GLASS01E01.V50.A2002001.h25v04.2020323.hdf
+    filePattern = re.compile(".*A(\d{4}).*\.h(\d{2})v(\d{2}).*\.hdf$")
 
-    subDirs = glob.glob(inputRoot + "/h??v??/????/")
-    subDirs.extend(glob.glob(inputRoot + "/????/h??v??/"))
-
-    subDirs.sort()
-    hvYearPattern = re.compile(r'h(\d+)v(\d+)[\\\/](\d+)')
-    yearHvPattern = re.compile(r'(\d+)[\\\/]h(\d+)v(\d+)')
-
-    for path in subDirs:
-        # print(path)
-        m = hvYearPattern.search(path)
-        if m:
-            # print(m.group(1), m.group(2), m.group(3))
-            h = m.group(1)
-            v = m.group(2)
-            year = m.group(3)
-            hvPath = "h{0}v{1}".format(h, v)
-            inputDir = os.path.join(inputRoot, hvPath, year)
-        else:
-            m = yearHvPattern.search(path)
+    # group files by (year, h, v)
+    fgroup = {}
+    for curRoot, _, files in os.walk(inputRoot):
+        for f in files:
+            m = filePattern.search(f)
             if m:
                 year = m.group(1)
                 h = m.group(2)
                 v = m.group(3)
-                hvPath = "h{0}v{1}".format(h, v)
-                inputDir = os.path.join(inputRoot, year, hvPath)
-            else:
-                continue
-
+                k = "A{0}h{1}v{2}".format(year, h, v)
+                if not k in fgroup:
+                    fgroup[k] = []
+                fgroup[k].append(os.path.join(curRoot, f))
+    
+    for k, files in fgroup.items():
+        year = k[1:5]
+        h = k[6:8]
+        v = k[9:11]
+        
         if outputOrganizedByYearFirst:
             outputDir = os.path.join(outputRoot, year)
         else:
+            hvPath = "h{0}v{1}".format(h, v)
             outputDir = os.path.join(outputRoot, hvPath)
         if not os.path.exists(outputDir):
             os.makedirs(outputDir)
-
+ 
         print("processing {0}: {1}, h:{2}, v:{3}, year:{4}...".format(
             product, statisticsType, h, v, year))
-        print(hvPath, str(year), inputDir, outputDir)
-
+ 
         if statisticsType == "maxValue":
             maximumByYear(
-                    inputDir,
+                    files,
                     product,
                     h, v,
                     int(year),
@@ -249,7 +279,7 @@ def batach_statistics(
                     temp_dir)
         elif statisticsType == "yearlyValue":
             calcYearlyValues(
-                    inputDir,
+                    files,
                     product,
                     h, v,
                     int(year),
@@ -268,20 +298,20 @@ if __name__ == "__main__":
     # --------------------------------------------------------------
     # Input parameters:
 
-    # product = "LAI"
-    product = "ET"
-    statisticsType = "yearlyValue"
-    # statisticsType = "maxValue"
+    product = "LAI"
+    # product = "ET"
+    # statisticsType = "yearlyValue"
+    statisticsType = "maxValue"
 
     root = "Z:/share/glass"
 
+    # input and output directories
     inputRoot = os.path.join(root, product)
     outputRoot = os.path.join(root, "statistics", product, statisticsType)
     outputOrganizedByYearFirst = True
     temp_dir = os.path.join(root, "temp")
-
     # or
-    # inputRoot = "Z:/share/glass/" + product + "/hv"
+    # inputRoot = "Z:/share/glass/" + product 
     # outputRoot ="Z:/share/glass/statistics/" + product + "/" + statisticsType
     # outputOrganizedByYearFirst = True
     # temp_dir = "Z:/share/glass/" + "temp"

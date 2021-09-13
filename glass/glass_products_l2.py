@@ -22,7 +22,7 @@ if __name__ == "__main__":
     if not os.path.exists(outputDir):
         os.makedirs(outputDir)
 
-    filePattern = re.compile(r'A(\d+)\.(h\d{2}v\d{2}).tif')
+    filePattern = re.compile(r'A(\d+)\.(h\d{2}v\d{2}).tif$')
     fileDict = {}
     for dirpath, dirs, files in os.walk(inputDir):
         for filename in files:
