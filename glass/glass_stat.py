@@ -213,10 +213,9 @@ def filterLAIRaster(raster):
     inRaster = arcpy.Raster(raster)
     inTrueRaster = inRaster
     # inFalseConstant = 0
-    whereClause = "VALUE <= 100"
 
     # Execute Con
-    outRaster = arcpy.sa.Con(inRaster, inTrueRaster, "", whereClause) 
+    outRaster = arcpy.sa.Con(inRaster<100, inTrueRaster ) 
     return outRaster
 
 # todo: some filters with ET raster
