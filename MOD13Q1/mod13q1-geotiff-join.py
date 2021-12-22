@@ -41,8 +41,11 @@ def joinFiles(inputdir, outputDir, fprefix):
         descriptions = dt_in.descriptions
 
     for bandId, bandname in enumerate(descriptions):
+        if bandname is None:
+            bandname = "band"
+
         print("\njoin band {0} {1} ...".format(bandId+1, bandname))
-        # print(fprefix, bandname)
+        print(fprefix, bandname)
         fName = fprefix + "-" + bandname + ".tif"
         fOutput = os.path.join(outputDir, fName)
         print("write to {0} ...".format(fOutput))
@@ -60,7 +63,7 @@ def joinFiles(inputdir, outputDir, fprefix):
 
 
 if __name__ == "__main__":
-    workspace = "/Users/jiangzhu/workspace/igsnrr/data/MOD13Q1/"
+    workspace = "/Users/hurricane/workspace/igsnrr/data/MOD13Q1/"
     inputDir = os.path.join(workspace, "MOD13Q1-MEDIAN-XJ")
     outputDir = os.path.join(workspace, "MOD13Q1-MEDIAN-XJ-join")
     prefix = "MOD13Q1-MEDIAN-XJ-join"
