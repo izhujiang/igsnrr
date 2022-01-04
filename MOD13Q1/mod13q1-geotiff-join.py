@@ -10,7 +10,7 @@ def joinFiles(inputdir, outputDir, fprefix):
 
     files = []
     f_list = sorted(os.listdir(inputDir))
-    # print f_list
+
     print("valid files:")
     for f in f_list:
         if os.path.splitext(f)[1] == '.tif':
@@ -42,7 +42,7 @@ def joinFiles(inputdir, outputDir, fprefix):
 
     for bandId, bandname in enumerate(descriptions):
         if bandname is None:
-            bandname = "band"
+            bandname = "band{0}".format(bandId + 1)
 
         print("\njoin band {0} {1} ...".format(bandId+1, bandname))
         print(fprefix, bandname)
@@ -53,13 +53,33 @@ def joinFiles(inputdir, outputDir, fprefix):
         # with rasterio.open(fOutput, 'w', **profile) as dt_out:
         with rasterio.open(fOutput, 'w', **profile, BIGTIFF='YES') as dt_out:
             year_index = 1
+            descs = []
+            
+            part_mask_arr = []
             for fo in files:
                 fInput = os.path.join(inputDir, fo)
-                print(fInput)
                 with rasterio.open(fInput) as dt_in:
                     ndvi_arr = dt_in.read(bandId + 1)
                     dt_out.write_band(year_index, ndvi_arr)
+                    desc = fo.replace(".tif", "")
+                    print("writing band: ", desc)
+                    descs.append(desc)
                     year_index += 1
+
+                    part_mask = dt_in.read_masks(bandId + 1)
+                    part_mask_arr.append(part_mask)
+            
+            mask = part_mask_arr[0]
+            for i in range(1, len(part_mask_arr)):
+                mask = mask & part_mask_arr[i]
+            dt_out.descriptions = descs
+            dt_out.write_mask(mask)
+            # print("descriptions: ", dt_out.descriptions)
+        
+        with rasterio.open(fOutput, 'r') as dt:
+            print("descriptions: ", dt.descriptions)
+            print("Profile:", dt.profile)
+
 
 
 if __name__ == "__main__":
