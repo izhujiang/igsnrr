@@ -5,9 +5,10 @@ import re
 import shutil
 
 
-def download(product_id, product_version, h, v, years, output, user, password):
+def download(repo_id, product_id, product_version, h, v, years, output, user, password):
     product = "{0}.{1}".format(product_id, product_version)
-    remoteRoot = "https://e4ftl01.cr.usgs.gov/MOTA/{PP}/".format(PP=product)
+    remoteRoot = "https://e4ftl01.cr.usgs.gov/{REPO}/{PP}/".format(
+        REPO=repo_id, PP=product)
     rpathPattern = "{REMOTE_ROOT}"
     lpathPattern = "{LOCAL_ROOT}/h{HH}v{VV}"
 
@@ -17,10 +18,10 @@ def download(product_id, product_version, h, v, years, output, user, password):
     # -A "*.*201[2-4]*.h25v04.*.hdf,*.h25v04.*.jpg,*.h25v04.*.hdf.xml"
     # --reject-regex=".*\?.*" https://e4ftl01.cr.usgs.gov/MOTA/MCD12Q1.006/
     cmdPatten = (
-            "wget --http-user={User} --http-password={Password} "
-            "-r --level=2 -nd -P {LocalDir} -np -A \"{AcceptList}\" "
-            "--reject-regex=\".*\\?.*\" {RemoteDir}"
-            )
+        "wget --http-user={User} --http-password={Password} "
+        "-r --level=2 -nd -P {LocalDir} -np -A \"{AcceptList}\" "
+        "--reject-regex=\".*\\?.*\" {RemoteDir}"
+    )
 
     if years == "*":
         accListPatterns = ",".join([
@@ -33,20 +34,20 @@ def download(product_id, product_version, h, v, years, output, user, password):
 
     if h != "*" and v != "*":
         localDir = lpathPattern.format(
-                LOCAL_ROOT=output, HH=h, VV=v)
+            LOCAL_ROOT=output, HH=h, VV=v)
     else:
         localDir = lpathPattern.format(
-                LOCAL_ROOT=output, HH="", VV="")
+            LOCAL_ROOT=output, HH="", VV="")
 
     acclist = accListPatterns.format(HH=h, VV=v)
     remoteDir = rpathPattern.format(REMOTE_ROOT=remoteRoot)
     cmd = cmdPatten.format(
-            User=user,
-            Password=password,
-            LocalDir=localDir,
-            AcceptList=acclist,
-            RemoteDir=remoteDir)
-    # print(cmd)
+        User=user,
+        Password=password,
+        LocalDir=localDir,
+        AcceptList=acclist,
+        RemoteDir=remoteDir)
+    print(cmd)
     os.system(cmd)
 
 
@@ -55,10 +56,13 @@ def rearrangeDirectories(output, h, v,  mode):
     lpathPattern = "{LOCAL_ROOT}/h{HH}v{VV}"
     if h != "*" and v != "*":
         hvDir = lpathPattern.format(
-                LOCAL_ROOT=output, HH=h, VV=v)
+            LOCAL_ROOT=output, HH=h, VV=v)
     else:
         hvDir = lpathPattern.format(
-                LOCAL_ROOT=output, HH="", VV="")
+            LOCAL_ROOT=output, HH="", VV="")
+
+    if not os.path.exists(hvDir):
+        return
 
     for f in os.listdir(hvDir):
         fPath = os.path.join(hvDir, f)
@@ -74,10 +78,10 @@ def rearrangeDirectories(output, h, v,  mode):
 
 
 def productSuffix(product_id):
-    if product_id.startswith("MCD"):
+    if product_id.startswith("MCD") or product_id.startswith("MOD"):
         return ["hdf", "jpg", "hdf.xml"]
     else:
-        print("invad product: ", product_id)
+        print("invalid product: ", product_id)
         return []
 
 
@@ -96,13 +100,15 @@ if __name__ == "__main__":
     # Requires a NASA Earthdata Login username and password.
     # To obtain a NASA Earthdata Login account, please visit
     # https://urs.earthdata.nasa.gov/users/new/.
-    user = "zj"
-    password = "1234"
+    user = "zhujiang007"
+    password = "Qwer1234"
 
-    product_id = "MCD12Q1"
-    product_version = "006"
+    repo_id = "MOLT"
+    product_id = "MOD13Q1"
+    product_version = "061"
     outputDir = "/Users/hurricane/share/modis/{0}.{1}".format(
-            product_id, product_version)
+        product_id,
+        product_version)
     # or
     # outputDir = "Z:/share/modis/{0}.{1}/".format(product_id, product_version)
 
@@ -112,12 +118,13 @@ if __name__ == "__main__":
     # "201* "for [2010 - 2019]
     # "*" for all years
     # years = "201[2-4]"
-    years = "*"
+    # years = "*"
+    years = "2012"
 
     hvs = [
-            # ("23", "04"),
-            # ("23", "05"),
-            ("25", "04")]
+        # ("23", "04"),
+        # ("23", "05"),
+        ("25", "04")]
     # or download all scenes with ("*", "*")
     # hvs = [("*", "*")]
 
@@ -128,11 +135,13 @@ if __name__ == "__main__":
         (h, v) = hv
         print("downloading {0}.{1} h{2}v{3} ...".format(
             product_id, product_version, h, v))
-        # download(
-        #         product_id, product_version,
-        #         h, v, years,
-        #         outputDir,
-        #         user, password)
+        download(
+            repo_id,
+            product_id,
+            product_version,
+            h, v, years,
+            outputDir,
+            user, password)
 
         if orderByYear is True:
             rearrangeDirectories(outputDir, h, v, mode="BY-YEAR")
