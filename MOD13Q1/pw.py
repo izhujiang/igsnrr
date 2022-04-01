@@ -52,8 +52,12 @@ ctx = pwlfm.PieceWiseLinearRegressionContext(
 )
 
 def analyzeSinglePoint(x, y):
-    pwRes = pwlfm.DoPieceWise(x, y, ctx)
+    if np.median(y) < 600:
+        ctx.maxSegmentCount = 1
+    else:
+        ctx.maxSegmentCount = 4
 
+    pwRes = pwlfm.DoPieceWise(x, y, ctx)
     # max_cor_coef, max_reg_coef, cp = pw.doPieceWise(df, ctx)
 
     res = {
@@ -69,14 +73,50 @@ def analyzeSinglePoint(x, y):
 
     return res
 
-if __name__ == "__main__":
-    
+def testAnalyzeSinglePoint():
     x = np.asarray([2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009,
                    2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021])
     y = np.asarray([276.84527587890625, 358.33203125, 314.0, 62.0, 100.0, 83.0, 415.0, 366.29766845703125,
                     454.0, 372.99871826171875, 137.8452606201172, 344.806884765625, 102.0, 284.2381286621094,
                     243.0, 512.0, 458.0, 349.8360290527344, 48.84526062011719, 140.0, 301.5119323730469, 327.0])
-    for i in range(100):
+    for i in range(5):
+        y = y + 100
         y  =  y + np.random.randint(5, size=(22))
+        print(y)
+        print(np.median(y))
         res = analyzeSinglePoint(x, y)
-        # print(res)
+        print(res)
+
+def profileAnalyzeSinglePoint():
+    from datetime import datetime
+
+    t1 = datetime.now()
+    height = 1
+    width = 100
+
+    t = np.arange(2000, 2022)
+    ndvi_arr = np.zeros((22, height, width))
+    y = np.asarray([276.84527587890625, 358.33203125, 314.0, 62.0, 100.0, 83.0, 415.0, 366.29766845703125,
+                    454.0, 372.99871826171875, 137.8452606201172, 344.806884765625, 102.0, 284.2381286621094,
+                    243.0, 512.0, 458.0, 349.8360290527344, 48.84526062011719, 140.0, 301.5119323730469, 327.0])
+    for i in range(0, height):
+        for j in range(0, width):
+            y  =  y + np.random.randintdd(5, size=(22)) 
+            ndvi_arr[:, i, j] = y
+
+    bands_data, _ = initResultStorage((height, width), -9999)
+
+    for i in range(0, height):
+        for j in range(0, width):
+            y = ndvi_arr[:, i, j]
+            resInPnt = analyzeSinglePoint(t, y)
+            for k in resInPnt:
+                bands_data[k][i, j] = resInPnt[k]
+
+    t2 = datetime.now()
+    print("analyzing {0} line takes {1} seconds.".format(
+        height, (t2-t1).seconds))
+
+if __name__ == "__main__":
+    # profileAnalyzeSinglePoint() 
+    testAnalyzeSinglePoint()

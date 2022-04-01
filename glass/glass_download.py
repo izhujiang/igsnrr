@@ -5,11 +5,17 @@ import re
 import shutil
 
 
-def download_glass(product, h, v, years, output):
+# download ET or LAI data to local storage
+# parameters:
+# product: ET or LAI
+# h, v : 24 05
+# year : 2000 -2021
+# output: local directory for storing data
+# result: output/h{dd}v{dd}/YYYY or output/YYYY
+def download_glass(product, h, v, year, output):
     # lf = "url.txt"
     remoteRoot = "http://www.glass.umd.edu/{PP}/MODIS/1km".format(PP=product)
     rpathPattern = "{REMOTE_ROOT}/{YYYY}/"
-    lpathPattern = "{LOCAL_ROOT}/h{HH}v{VV}/{YYYY}"
 
     # wget usage:
     # wget -r -nd -P /Users/hurricane/share/glass/ET/h25v04/2013 --no-parent
@@ -23,44 +29,45 @@ def download_glass(product, h, v, years, output):
     accListPatterns = ",".join([
             "*.h{HH}v{VV}.*." + suffix for suffix in productSuffix(product)])
 
-    for year in range(years["start"], years["end"]):
-        if h != "*" and v != "*":
-            localDir = lpathPattern.format(
-                    LOCAL_ROOT=output, HH=h, VV=v,  YYYY=year)
-        else:
-            localDir = lpathPattern.format(
-                    LOCAL_ROOT=output, HH="", VV="",  YYYY=year)
+    if h != "*" and v != "*":
+        lpathPattern = "{LOCAL_ROOT}/h{HH}v{VV}/{YYYY}"
+        localDir = lpathPattern.format(
+                LOCAL_ROOT=output, HH=h, VV=v,  YYYY=year)
+    else:
+        lpathPattern = "{LOCAL_ROOT}/{YYYY}"
+        localDir = lpathPattern.format(
+                LOCAL_ROOT=output, YYYY=year)
 
-        acclist = accListPatterns.format(HH=h, VV=v)
-        remoteDir = rpathPattern.format(
-                REMOTE_ROOT=remoteRoot, YYYY=year)
-        cmd = cmdPatten.format(
-                LocalDir=localDir,
-                AcceptList=acclist,
-                RemoteDir=remoteDir)
-        print(cmd)
-        os.system(cmd)
+    acclist = accListPatterns.format(HH=h, VV=v)
+    remoteDir = rpathPattern.format(
+            REMOTE_ROOT=remoteRoot, YYYY=year)
+    cmd = cmdPatten.format(
+            LocalDir=localDir,
+            AcceptList=acclist,
+            RemoteDir=remoteDir)
+    print(cmd)
+    os.system(cmd)
 
 
 # helper functions
-def rearrangeDirectories(rootDir, hv):
+def rearrangeDirectories(rootDir, year, hv):
     if hv != "*":
         return
-    hvDir = os.path.join(rootDir, "hv")
-    for year in os.listdir(hvDir):
-        yPath = os.path.join(hvDir, year)
-        if os.path.isdir(yPath):
-            for f in os.listdir(yPath):
-                m = re.search(r"h\d+v\d+", f)
-                if m:
-                    match_hv = m.group(0)
-                    hvPath = os.path.join(yPath, match_hv)
-                    if not os.path.exists(hvPath):
-                        os.makedirs(hvPath)
-                    src = os.path.join(yPath, f)
-                    dest = os.path.join(hvPath, f)
-                    shutil.move(src, dest)
-                    print(match_hv, hvPath)
+    # hvDir = os.path.join(rootDir, "hv")
+    hvDir = rootDir
+    yPath = os.path.join(hvDir, year)
+    if os.path.isdir(yPath):
+        for f in os.listdir(yPath):
+            m = re.search(r"h\d+v\d+", f)
+            if m:
+                match_hv = m.group(0)
+                hvPath = os.path.join(yPath, match_hv)
+                if not os.path.exists(hvPath):
+                    os.makedirs(hvPath)
+                src = os.path.join(yPath, f)
+                dest = os.path.join(hvPath, f)
+                shutil.move(src, dest)
+                print(match_hv, hvPath)
 
 
 def productSuffix(product):
@@ -96,19 +103,20 @@ if __name__ == "__main__":
 
     # data in [start, end), for example:
     # years = [start=2013, end=2014) presents data in year 2013
-    years = dict(start=2017, end=2019)
+    years = range(2017, 2019)
 
     hvs = [
             # ("23", "04"),
             # ("23", "05"),
             ("25", "04")]
     # or download all scenes with ("*", "*")
-    # hvs = [("*", "*")]
+    hvs = [("*", "*")]
 
     # --------------------------------------------
-    for hv in hvs:
-        (h, v) = hv
-        download_glass(product, h, v, years, outputDir)
+    for year in years:
+        for hv in hvs:
+            (h, v) = hv
+            download_glass(product, h, v, year, outputDir)
 
-        if h == "*" and v == "*":
-            rearrangeDirectories(outputDir, "*")
+            if h == "*" and v == "*":
+                rearrangeDirectories(outputDir, str(year), "*")

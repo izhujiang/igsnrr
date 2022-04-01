@@ -44,6 +44,7 @@ def setupVirtualX(T, C):
         return X
         # return X[:,1:]
 
+preset_params = {}
 
 class PieceWiseLinearFitModel:
     def __init__(
@@ -63,25 +64,21 @@ class PieceWiseLinearFitModel:
         # self.lm = linear_model.LinearRegression(copy_X=True)
         self.setupPotentialBreaks(n_maxSegments, minSegmentLength, potentialBreaks, maxFirstBreak, minLastBreak)
 
+
     def findMaxScoreBreaksAtNSegments(self, n_segments):
         """
         max_r_sq, max coef at level of n segments
         max_c, 
-
         """
-        max_r_sq_breaks = None
-        max_rsqrd = 0
-
         # find the breaks with max cor_coef
         cs = self.cs_arr[n_segments - 1]
+        max_r_sq_breaks = None
         max_r_sq = 0
         # print("n_segments and breaks list:", n_segments, cs)
+
         for c in cs:
             # print("fitting with:", c)
-
             X = setupVirtualX(self.t, c)
-            # print(X[:5])
-            # print(y[:5])
 
             model = sm.OLS(self.y, X)
             results = model.fit()
@@ -94,7 +91,27 @@ class PieceWiseLinearFitModel:
         # print("n_segments:", n_segments, "max_r_sq:", max_r_sq, "max_cor:", math.sqrt(max_r_sq), "max_r_sq_breaks", max_r_sq_breaks)
         # self.fit_with_breaks(max_c)
         return max_r_sq, max_r_sq_breaks
-    
+
+    # even slower
+    # def findMaxScoreBreaksAtNSegments2(self, n_segments):
+    #     """
+    #     max_r_sq, max coef at level of n segments
+    #     max_c, 
+    #     """
+    #     # find the breaks with max cor_coef
+    #     cs = self.cs_arr[n_segments - 1]
+    #     cs_withscore_arr = np.apply_along_axis(self.scoreAtBreaks_alongAxis, 1, cs)
+    #     maxInd = np.argmax(cs_withscore_arr[:, 0])
+    #     max_r_cs = cs_withscore_arr[maxInd] 
+       
+    #     return max_r_cs[0], max_r_cs[1]
+    # def scoreAtBreaks_alongAxis(self, c):
+    #     X = setupVirtualX(self.t, c)
+    #     model = sm.OLS(self.y, X) 
+    #     results = model.fit()
+    #     r_sq = results.rsquared
+    #     return r_sq, c
+
     def fit(self, breaks):
         """
         model.fit_breaks # breakpoint locations, type: np.array
@@ -113,36 +130,6 @@ class PieceWiseLinearFitModel:
 
         return results
 
-    # def setupVirtualX(self, T, C):
-    #     """
-    #     T: t serials, np.array
-    #     C: breaks, include both ends, np.array
-    #     """
-
-    #     N = T.size
-    #     M = C.size
-    #     X = np.zeros((N, M))
-
-    #     # print(C)
-    #     deltaC = np.diff(C)
-        
-    #     # X = np.piecewise(TT, [TT > CC, TT>=CC0 and TT<CC], [deltaCC, TT-CC0])
-    #     for j in range(1, M):
-    #         # # test where is t located [ *, C[j-1], *, C[j], *]
-    #         # if T > C[j]:
-    #         idx =T > C[j], j
-    #         X[idx] = deltaC[j - 1] # C[j] - C[j-1]
-    #         # elif T < C[j - 1]:
-    #             # break
-    #         # else:  # C[j-1] <= t <= C[j]
-    #         idx = np.logical_and(C[j-1] <= T, T<= C[j])
-    #         X[idx, j] = T[idx] - C[j-1]
-        
-    #     # [1, x1, x2, x3...] for X * B = Y
-    #     X[:, :1] = 1
-    #     return X
-    #     # return X[:,1:]
-
     def evaluateModelPerformce(self, breaks):
         reg  = self.fit(breaks)
         yp = reg.predict(self.X)
@@ -159,8 +146,8 @@ class PieceWiseLinearFitModel:
             p1 = breaks[i+1]
             indexs = np.logical_and(self.t >= p0, self.t <= p1)
             if len(self.t[indexs]) < 2:
-                print(breaks)
-                print("skipping p0-p1:", p0, p1)
+                # print(breaks)
+                # print("skipping p0-p1:", p0, p1)
                 continue
             # print("p0-p1:",p0, p1)
             # print("x:", x[indexs])
@@ -200,7 +187,13 @@ class PieceWiseLinearFitModel:
 
         if minLastBreak is None:
             self.minLastBreak = self.t[1]
+        
+        if "cs_arr" in preset_params and len(preset_params["cs_arr"]) >= n_maxSegments:
+            # print("using cached cs_arr", len(preset_params["cs_arr"]))
+            self.cs_arr = preset_params["cs_arr"]
+            return
 
+        # print("not using cached cs_arr", self.n_maxSegments)
         self.cs_arr = [np.empty(1, dtype=int)]* self.n_maxSegments
         self.cs_arr[0] =np.array([np.concatenate((self.t[:1], self.t[-1:])) ])
 
@@ -225,6 +218,8 @@ class PieceWiseLinearFitModel:
             # print("before filter:", self.cs_arr[k].size,  self.cs_arr[k])
             self.cs_arr[k] = self.cs_arr[k][min_delta >= self.minSegmentLength]
             # print("after filter:", self.cs_arr[k].size, self.cs_arr[k])
+        
+        preset_params["cs_arr"] = self.cs_arr
 
 class PieceWiseLinearRegressionContext:
     def __init__(
@@ -341,6 +336,11 @@ def testFit():
     x,y = initTestData()
     model = PieceWiseLinearFitModel(x, y, n_maxSegments=4, minSegmentLength=3)
     model.fit(C)
+    
+def testFit_apply_axis():
+    x,y = initTestData()
+    model = PieceWiseLinearFitModel(x, y, n_maxSegments=4, minSegmentLength=3)
+    model.findMaxScoreBreaksAtNSegments2(4) 
 
 def testDoPieceWise():
     x,y = initTestData()
@@ -391,6 +391,7 @@ def fitWithBreaksPerformceProfile():
 
     # print(datetime.datetime.now())
 
+
 def wholeFitPerformceProfile():
     C = np.array([2000.0, 2005.0, 2012.0, 2021.0])
 
@@ -401,7 +402,22 @@ def wholeFitPerformceProfile():
         model.fit(C)
 
     # print(datetime.datetime.now())
-
+def profileFindMaxScoreBreaksAtNSegments():
+    ctx = PieceWiseLinearRegressionContext(
+        recordNumber=22,
+        minSegmentCount=1,
+        maxSegmentCount=4,
+        minSegmentLength=3,
+        ceofThreshold=0.90,
+        ceofDiffEpsilon=0.000001,
+        debugLevel=0,
+    )
+    t,y = initTestData()
+    for i in range(5):
+        y  =  y + np.random.randint(5, size=(22))
+        model = PieceWiseLinearFitModel(t, y, n_maxSegments=ctx.maxSegmentCount, minSegmentLength= ctx.minSegmentLength)
+        model.findMaxScoreBreaksAtNSegments(4)
+ 
 def DoPiecewiseProfile():
     x,y = initTestData()
     ctx = PieceWiseLinearRegressionContext(
@@ -413,7 +429,7 @@ def DoPiecewiseProfile():
             debugLevel=0,
         )
 
-    for i in range(500):
+    for i in range(1000):
         y  =  y + np.random.randint(5, size=(22))
         pwRes = DoPieceWise(x, y, ctx)
 
@@ -421,7 +437,8 @@ def testSuit():
     # testSetupBreaks()
     # testFitWithBreaks()
     # testFit()
-    testDoPieceWise()
+    testFit_apply_axis()
+    # testDoPieceWise()
 
 # performce profiling 
 # 1. Whole program profiling
@@ -438,7 +455,8 @@ def perfromceSuit():
 
     # fitWithBreaksPerformceProfile()
     # wholeFitPerformceProfile()
-    DoPiecewiseProfile()
+    profileFindMaxScoreBreaksAtNSegments()
+    # DoPiecewiseProfile()
 
     # cp.disable()
     # cp.print_stats()

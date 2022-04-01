@@ -170,16 +170,16 @@ def analyzeChunk(chunkId, fInput, opts, outputDir, fOutputPrefix):
         t1 = datetime.now()
 
         for i in range(0, height):
-            if i % 1 == 0:
-                print(
-                    "processing line : {0} at {1}".format(
-                        i + opts["line_start"], datetime.now()))
+            # if i % 40 == 0:
+            #     print(
+            #         "processing line : {0} at {1}".format(
+            #             i + opts["line_start"], datetime.now()))
 
             for j in range(0, width):
-                if j % 100 == 0:
-                    print(
-                        "processing column : {0} at {1}".format(
-                            j, datetime.now()))
+                # if j % 100 == 0:
+                #     print(
+                #         "processing column : {0} at {1}".format(
+                #             j, datetime.now()))
 
                 y = ndvi_arr[:, i, j]
                 # if not np.isnan(np.min(y)):

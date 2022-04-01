@@ -59,14 +59,19 @@ def joinFiles(inputdir, outputDir, fprefix):
             for fo in files:
                 fInput = os.path.join(inputDir, fo)
                 with rasterio.open(fInput) as dt_in:
+                    # print("nodata: ", dt_in.nodata)
+                    # print("mask:", dt_in.read_masks(1))
+
                     ndvi_arr = dt_in.read(bandId + 1)
                     dt_out.write_band(year_index, ndvi_arr)
+                    
                     desc = fo.replace(".tif", "")
                     print("writing band: ", desc)
                     descs.append(desc)
                     year_index += 1
 
-                    part_mask = dt_in.read_masks(bandId + 1)
+                    part_mask = dt_in.read_masks(1)
+                    # dt_out.write_mask(1, part_mask)
                     part_mask_arr.append(part_mask)
             
             mask = part_mask_arr[0]

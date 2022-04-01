@@ -61,7 +61,7 @@ class PieceWiseLinearFitModel:
                 if np.amin(c_diff[1:]) < minSegmentLength:
                     continue
 
-            print("fitting with:", c)
+            # print("fitting with:", c)
             self.fit_with_breaks(c)
 
             yp = self.predict()
