@@ -106,10 +106,10 @@ def getSubDirectoryByYear(fileName):
 
 
 if __name__ == "__main__":
-    user = ""
+    user = "m.zhujiang"
     psword = ""
-    task_id = "d9b9a4f6-658e-49e8-9a7a-5cb97fb09f07"
-    dest_dir = "C:/igsnrr/data/modis/MOD13Q1.061"
+    task_id = "ff7a6ca3-b4af-4d2d-bf41-266c65930728"
+    dest_dir = "Z:/share/modis/MOD13Q1.061"
 
     # --------------------
     os.environ["CURL_SSL_BACKEND"] = "secure-transport"
