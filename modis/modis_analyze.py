@@ -8,10 +8,11 @@ import arcpy
 from arcpy import env
 from arcpy.sa import *
 
+
 def modis_statistics(inputWorkspace, outputDir, stat_method):
     if not os.path.exists(outputDir):
         os.makedirs(outputDir)
-        
+
     for item in os.listdir(inputWorkspace):
         curDir = os.path.join(inputWorkspace, item)
         if os.path.isdir(curDir) and re.match("\d{4}", item):
@@ -31,7 +32,7 @@ def makeFilterFunc(pattern):
         if re.match(pattern, item):
             m = re.search("(\d{7})", item)
             doy = int(m.group(0)[4:])
-            if doy >=97 and doy < 305:
+            if doy >= 97 and doy < 305:
                 return True
         return False
 
@@ -46,7 +47,7 @@ def cell_statistics(inputDir, filterFunc, stat_method, outputPath):
     validRasters = []
     for r in inputRasters:
         validRasters.append(r)
-    if validRasters is None or len(validRasters)==0:
+    if validRasters is None or len(validRasters) == 0:
         return
 
     validRasters.sort()
@@ -55,14 +56,16 @@ def cell_statistics(inputDir, filterFunc, stat_method, outputPath):
     outRaster = CellStatistics(validRasters, stat_method, "DATA")
     outRaster.save(outputPath)
 
-def SmoothRaster(img1, img2, img3, resImg, tempdir, randScale = "10"):
+
+def SmoothRaster(img1, img2, img3, resImg, tempdir, randScale="10"):
     # Local variables:
     t = time.time()
     internal_iter = int(t * 1000)
     tmps = []
     for i in range(10):
-        tmps.append(os.path.join(tempdir, "tmp_{0}.tif".format(internal_iter + i)))
-    
+        tmps.append(os.path.join(
+            tempdir, "tmp_{0}.tif".format(internal_iter + i)))
+
     constRaster2 = "2"
     totalWeightsRaster = "4"
     img2_times2 = tmps[0]
@@ -78,7 +81,6 @@ def SmoothRaster(img1, img2, img3, resImg, tempdir, randScale = "10"):
     img_rand3 = tmps[7]
     img_rand_int = tmps[8]
     img_av_int_rand = tmps[9]
-
 
     print("processing: {0}  -> {1}".format(img2, resImg))
     # (img1 + img2 * 2 + img3) / 4
@@ -99,7 +101,8 @@ def SmoothRaster(img1, img2, img3, resImg, tempdir, randScale = "10"):
     # if img_av_int_rand is null, use img2
     # print("debug...", img_av_int_rand, img2, resImg)
     # arcpy.gp.Con_sa(img_con, img_t, resImg, img_f, "")
-    arcpy.gp.Con_sa(IsNull(Raster(img_av_int_rand)), img2, resImg, img_av_int_rand, "")
+    arcpy.gp.Con_sa(IsNull(Raster(img_av_int_rand)),
+                    img2, resImg, img_av_int_rand, "")
 
 
 def SmoothRasterArray(inputDir, outputDir, tempDir, ele, randScale="10", loopCount=1):
@@ -107,7 +110,7 @@ def SmoothRasterArray(inputDir, outputDir, tempDir, ele, randScale="10", loopCou
         os.makedirs(outputDir)
     if not os.path.exists(tempDir):
         os.makedirs(tempDir)
- 
+
     t = time.time()
     tm = int(t * 1000)
 
@@ -123,21 +126,20 @@ def SmoothRasterArray(inputDir, outputDir, tempDir, ele, randScale="10", loopCou
     # files = os.listdir(inputDir)
     # files = [f for f in files if f.endswith(".tif")]
     files = os.listdir(inputDir)
-    files = [f for f in files if reg.match(f)] 
+    files = [f for f in files if reg.match(f)]
     if len(files) <= 2:
         return
-        
+
     files.sort()
     print("processing ...")
     for i in range(len(files)):
-        print(os.path.join(inputDir, files[i])) 
-    
+        print(os.path.join(inputDir, files[i]))
 
-    inRasters = [ os.path.join(inputDir, fo) for fo in files] 
+    inRasters = [os.path.join(inputDir, fo) for fo in files]
 
     count = len(inRasters)
     outputDirs = []
-    for i in range(loopCount -1):
+    for i in range(loopCount - 1):
         tmpOutputDir = os.path.join(tempDir, str(tm + i + 1))
         if not os.path.exists(tmpOutputDir):
             os.makedirs(tmpOutputDir)
@@ -145,35 +147,36 @@ def SmoothRasterArray(inputDir, outputDir, tempDir, ele, randScale="10", loopCou
 
     outputDirs.append(outputDir)
     # print("outputDirs:", outputDirs)
-    
+
     for k in range(loopCount):
         outRasters = []
         outRasters.append(inRasters[0])
         for i in range(1, count - 1):
-            img1 = inRasters[i -1]
+            img1 = inRasters[i - 1]
             img2 = inRasters[i]
             img3 = inRasters[i + 1]
             resRaster = os.path.join(outputDirs[k], os.path.basename(img2))
             # print("resRaster: ", resRaster, "k=", k)
             SmoothRaster(img1, img2, img3, resRaster, tmpOutputDir0, randScale)
-            
+
             outRasters.append(resRaster)
-    
+
         outRasters.append(inRasters[count - 1])
         inRasters = outRasters
-    
+
     # copy the two-end rasters
     img1 = inRasters[0]
     resRaster = os.path.join(outputDir, os.path.basename(img1))
     arcpy.gp.Int_sa(img1, resRaster)
-    img3 = inRasters[count -1]
+    img3 = inRasters[count - 1]
     resRaster = os.path.join(outputDir, os.path.basename(img3))
     arcpy.gp.Int_sa(img3, resRaster)
-    
+
     # remove temp dir
     arcpy.Delete_management(tmpOutputDir0, "Folder")
-    for k in range(loopCount -1):
+    for k in range(loopCount - 1):
         arcpy.Delete_management(outputDirs[k], "Folder")
+
 
 def TestSmoothRasterArray():
     inputDir = "Z:/share/modis2/MOD13Q1.061/2020"
@@ -184,7 +187,8 @@ def TestSmoothRasterArray():
     ele = "NDVI"
     SmoothRasterArray(inputDir, outputDir, tempDir, ele, randScale, loopCount)
 
-def SmoothRastersByWorkspace(inputWorkspace, outputWorkspace, tempDir, randScale = "20", loopCount = 1):
+
+def SmoothRastersByWorkspace(inputWorkspace, outputWorkspace, tempDir, randScale="20", loopCount=1):
     eles = ["NDVI", "EVI"]
     for ele in eles:
         subItems = os.listdir(inputWorkspace)
@@ -192,7 +196,9 @@ def SmoothRastersByWorkspace(inputWorkspace, outputWorkspace, tempDir, randScale
             input = os.path.join(inputWorkspace, item)
             if os.path.isdir(input):
                 output = os.path.join(outputWorkspace, item)
-                SmoothRasterArray(input, output, tempDir, ele, randScale, loopCount)
+                SmoothRasterArray(input, output, tempDir,
+                                  ele, randScale, loopCount)
+
 
 def CopyAndFilterRaster(inputWorkspace, outputWorkspace):
     for d in os.listdir(inputWorkspace):
@@ -209,45 +215,44 @@ def CopyAndFilterRaster(inputWorkspace, outputWorkspace):
                 reg = re.compile(fp)
 
                 files = os.listdir(inputDir)
-                files = [f for f in files if reg.match(f)] 
+                files = [f for f in files if reg.match(f)]
                 files.sort()
                 for fname in files:
                     fInput = os.path.join(inputDir, fname)
                     fOutput = os.path.join(outputDir, fname)
-                    
+
                     m = re.search("(\d{7})", fname)
                     doy = int(m.group(0)[4:])
-                    if doy >=97 and doy < 305:
+                    if doy >= 97 and doy < 305:
                         print("{0}  -->  {1}".format(fInput, fOutput))
-                        arcpy.CopyRaster_management(fInput, fOutput, "", "", "", "NONE", "NONE", "", "NONE", "NONE", "", "NONE")
+                        arcpy.CopyRaster_management(
+                            fInput, fOutput, "", "", "", "NONE", "NONE", "", "NONE", "NONE", "", "NONE")
 
-        
 
 if __name__ == "__main__":
-    # arcpy.CheckOutExtension("Spatial")
+    arcpy.CheckOutExtension("Spatial")
 
     inputWorkspace = "Z:/share/modis/MOD13Q1.061"
     outputWorkspace = "Z:/share/modis2/MOD13Q1.061"
     # inputWorkspace = "/Users/hurricane/share/modis/MOD13Q1.061"
-    
+
     if not os.path.exists(outputWorkspace):
         os.makedirs(outputWorkspace)
-   
-    
 
     # step 1: filter valid files
-    # CopyAndFilterRaster(inputWorkspace, outputWorkspace)
+    CopyAndFilterRaster(inputWorkspace, outputWorkspace)
 
-    # step 2: smooth rasters
+    # step 2 (optional): smooth rasters
     inputWorkspace = outputWorkspace
     outputWorkspace = "Z:/share/modis3/MOD13Q1.061"
     tempDir = "Z:/share/modis/temp"
     randScale = "20"  # the standard deviation of the standard deviation
     loopCount = 1
-    
-    SmoothRastersByWorkspace(inputWorkspace, outputWorkspace, tempDir,  randScale, loopCount)
 
-     # step 3: statistics("MEDIAN") rasters
+    SmoothRastersByWorkspace(
+        inputWorkspace, outputWorkspace, tempDir,  randScale, loopCount)
+
+    # step 3: statistics("MEDIAN") rasters
     inputWorkspace = outputWorkspace
     outputWorkspace = "Z:/share/modis4/MOD13Q1.061"
     stat_method = "MEDIAN"
