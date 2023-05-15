@@ -10,7 +10,7 @@ function runTaskList() {
 
 function confirmAll() {
   var diags = document.getElementsByTagName("ee-image-config-dialog");
-  console.log(diags.length);
+  // console.log(diags.length);
   for (var i = 0; i < diags.length; i++) {
     run =
       diags[i].shadowRoot.children[0].shadowRoot.querySelector(".ok-button");
@@ -20,4 +20,4 @@ function confirmAll() {
 runTaskList();
 setTimeout(() => {
   confirmAll();
-}, 5000);
+}, 60000);
