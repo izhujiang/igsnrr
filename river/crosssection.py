@@ -8,11 +8,13 @@ def find_min_value_and_index(arr):
     min_index = arr.index(min_value)
     return min_value, min_index
 
+
 def find_max_value_and_index_until(arr, min_index):
     sub_array = arr[:min_index]
     max_value = max(sub_array)
     max_index = sub_array.index(max_value)
     return max_value, max_index
+
 
 def find_max_value_and_index_from(arr, min_index):
     sub_array = arr[min_index:]
@@ -20,7 +22,9 @@ def find_max_value_and_index_from(arr, min_index):
     max_index = sub_array.index(max_value) + min_index
     return max_value, max_index
 
-# assuming elevations[0], elevations[len - 1] are valid ends that are heigher than all their neighbers
+
+# assuming elevations[0], elevations[len - 1] are valid ends that are heigher
+# than all their neighbers
 def calculate_polygon_areas(distances, elevations, target_elevation):
     min_end_elevation = min(elevations[0], elevations[-1])
     if target_elevation > min_end_elevation:
@@ -33,36 +37,38 @@ def calculate_polygon_areas(distances, elevations, target_elevation):
         elif elevations[i-1] < target_elevation and elevations[i] < target_elevation:
             a = 0.5 * (distances[i] - distances[i-1]) * ((target_elevation - elevations[i]) + (target_elevation - elevations[i - 1]))
             polygon_areas.append(a)
-        elif elevations[i-1] < target_elevation and elevations[i] >= target_elevation:  
+        elif elevations[i-1] < target_elevation and elevations[i] >= target_elevation:
             x_intersect = distances[i-1] + (distances[i] - distances[i-1]) * (target_elevation - elevations[i-1]) / (elevations[i] - elevations[i-1])
-            a = 0.5 * (x_intersect - distances[i-1]) * (target_elevation - elevations[i - 1] )   
+            a = 0.5 * (x_intersect - distances[i-1]) * (target_elevation - elevations[i - 1])
             polygon_areas.append(a)
-        elif elevations[i-1] >= target_elevation and elevations[i] < target_elevation:  
+        elif elevations[i-1] >= target_elevation and elevations[i] < target_elevation:
             x_intersect = distances[i-1] + (distances[i] - distances[i-1]) * (target_elevation - elevations[i-1]) / (elevations[i] - elevations[i-1])
-            a = 0.5 * (distances[i] - x_intersect) * (target_elevation - elevations[i])    
-                               
-            polygon_areas.append(a)                     
-        else:                         
+            a = 0.5 * (distances[i] - x_intersect) * (target_elevation - elevations[i])
+
+            polygon_areas.append(a)
+        else:
             print("something go wrong")
 
     return polygon_areas
+
 
 def calculate_x_intersects(distances, elevations, target_elevation):
     min_end_elevation = min(elevations[0], elevations[-1])
     if target_elevation > min_end_elevation:
         return []
-    
+
     x_intersects = []
     for i in range(1, len(distances)):
         if (elevations[i-1] >= target_elevation and elevations[i] >= target_elevation) or (elevations[i-1] < target_elevation and elevations[i] < target_elevation):
             continue
-        elif (elevations[i-1] < target_elevation and elevations[i] >= target_elevation) or (elevations[i-1] >= target_elevation and elevations[i] < target_elevation):  
+        elif (elevations[i-1] < target_elevation and elevations[i] >= target_elevation) or (elevations[i-1] >= target_elevation and elevations[i] < target_elevation):
             x_intersect = distances[i-1] + (distances[i] - distances[i-1]) * (target_elevation - elevations[i-1]) / (elevations[i] - elevations[i-1])
             x_intersects.append(x_intersect)
-        else:                         
+        else:
             print("something go wrong")
 
     return x_intersects
+
 
 def calculate_polygon_area_with_target_elevation(distances, elevations, target_elevation):
     min, min_index = find_min_value_and_index(elevations)
@@ -70,7 +76,7 @@ def calculate_polygon_area_with_target_elevation(distances, elevations, target_e
     end_right, end_right_index = find_max_value_and_index_from(elevations, min_index)
     cross_section_range_msg = f'river cross section: [{distances[end_left_index]}, {distances[end_right_index]}] -- index: [{end_left_index}, {end_right_index}].'
     print(cross_section_range_msg)
-    
+
     distances = distances[end_left_index: end_right_index + 1]
     elevations = elevations[end_left_index: end_right_index + 1]
     # Calculate polygon areas
@@ -78,13 +84,25 @@ def calculate_polygon_area_with_target_elevation(distances, elevations, target_e
 
     return distances, elevations, polygon_areas
 
-def calculate_cross_section_area_elevations(distances, elevations, target_elevations):
-    min, min_index = find_min_value_and_index(elevations)
+
+def calculate_cross_section_area_elevations(distances, elevations, target_elevation_parameter):
+    min_elv, min_index = find_min_value_and_index(elevations)
     end_left, end_left_index = find_max_value_and_index_until(elevations, min_index)
     end_right, end_right_index = find_max_value_and_index_from(elevations, min_index)
     cross_section_range_msg = f'river cross section: [{distances[end_left_index]}, {distances[end_right_index]}] -- index: [{end_left_index}, {end_right_index}].'
     print(cross_section_range_msg)
-    
+
+    if target_elevation_parameter is None:
+        min_target_elevation = min_elv
+        max_target_elevation = min(end_left, end_right)
+        elevation_count = 10
+    else:
+        min_target_elevation = target_elevation_parameter["min_elevation"]
+        max_target_elevation = target_elevation_parameter["max_elevation"]
+        elevation_count = target_elevation_parameter["count"]
+
+    target_elevations = np.linspace(min_target_elevation, max_target_elevation, num=elevation_count).tolist()
+
     distances = distances[end_left_index: end_right_index + 1]
     elevations = elevations[end_left_index: end_right_index + 1]
     # Calculate polygon areas
@@ -97,10 +115,11 @@ def calculate_cross_section_area_elevations(distances, elevations, target_elevat
         width = 0
         if len(x_intersects) >= 2:
             width = x_intersects[-1] - x_intersects[0]
-            
+
         results.append([target_elevation, total_area, width])
-    
+
     return results
+
 
 def read_cross_river_data(filename):
     distances = []
@@ -117,9 +136,10 @@ def read_cross_river_data(filename):
 
     return distances, elevations
 
+
 def write_cross_river_sections_data(filename, results):
     lines = []
-    
+
     h_elev = "Elevation"
     h_area = "Area"
     h_width = "Width"
@@ -137,24 +157,28 @@ def write_cross_river_sections_data(filename, results):
 def read_parameters(filename):
     parameters = {}
 
+    if not os.path.exists(filename):
+        return parameters
+
     with open(filename, 'r') as file:
         next(file)  # Skip the header line
         for line in file:
             line = line.strip()
             if line:
                 data = line.split()
-                river_id = data[0]
+                crs_id = data[0]
                 min_elevation = float(data[1])
                 max_elevation = float(data[2])
                 count = int(data[3])
-                parameters[river_id] = {
-                    "river_id" : river_id,
+                parameters[crs_id] = {
+                    "crs_id": crs_id,
                     "min_elevation": min_elevation,
                     "max_elevation": max_elevation,
-                    "count":count
+                    "count": count
                 }
 
     return parameters
+
 
 # help and test functions
 def init_data():
@@ -172,12 +196,14 @@ def init_data():
     ]
     return distances, elevations
 
+
 def init_parameters():
     min_target_elevation = 1039.6
     max_target_elevation = 1043
     elevation_count = 10
 
     return min_target_elevation, max_target_elevation, elevation_count
+
 
 def test():
     # distances, elevations = init_data()
@@ -188,20 +214,20 @@ def test():
     # Plotting the cross river section and the polygons
     plt.figure(figsize=(10, 6))
     plt.plot(distances, elevations, '-o', label='Cross River Section')
-    target_elevations = [1039.60	,1039.98, 1040.36, 1040.73, 1041.11, 1041.49, 1041.87,  1042.24, 1042.62, 1043.00]
+    target_elevations = [1039.60, 1039.98, 1040.36, 1040.73, 1041.11, 1041.49, 1041.87,  1042.24, 1042.62, 1043.00]
     for target_elevation in target_elevations:
         plt.axhline(y=target_elevation, color='r', linestyle='--', label='Elevation 1041')
 
     target_elevation = 1041
     # Display polygon areas as text annotations
     for i, area in enumerate(polygon_areas):
-        plt.annotate(f'{area:.1f}', xy=(distances[i], target_elevation), xytext=(10, 10),
-                    textcoords='offset points', ha='center')
+        plt.annotate(f'{area:.1f}', xy=(distances[i], target_elevation), xytext=(10, 10), textcoords='offset points', ha='center')
 
     plt.xlabel('Distance')
     plt.ylabel('Elevation')
 
     print(polygon_areas)
+
 
 def test3():
     parameters = read_parameters("parameters.txt")
@@ -211,45 +237,33 @@ def test3():
 
 def demo():
     # ------------------------------------------------------
-    parameter_default = {
-        "river_id" : "0",
-        "min_elevation": 1040,
-        "max_elevation": 1042,
-        "count":8
-    }
-
-    cross_river_section_id = "crs001"
+    # cross_river_section_id = "crs001"
     input_dir = "data"
     output_dir = "results"
-
-    sample_data_filename = f"{input_dir}/{cross_river_section_id}.txt"
     parameters_filename = "parameters.txt"
+
+    # sample_data_filename = f"{input_dir}/{cross_river_section_id}.txt"
     # ------------------------------------------------------
     parameters = read_parameters(parameters_filename)
 
     for filename in os.listdir(input_dir):
         print("filename: ", filename)
-        sample_data_filename = os.path.join(input_dir, filename)  # Get the full file path
-        if not os.path.isfile(sample_data_filename):  # Check if the current item is a file
+        sample_data_filename = os.path.join(input_dir, filename)
+        if not os.path.isfile(sample_data_filename):
             continue
 
         cross_river_section_id = filename.split(".")[0]
         distances, elevations = read_cross_river_data(sample_data_filename)
 
-        if cross_river_section_id  in  parameters:
+        if cross_river_section_id in parameters:
             parameter = parameters[cross_river_section_id]
         else:
             print(f"{cross_river_section_id} use default parameters")
-            parameter = parameter_default
+            parameter = None
 
         # min_target_elevation, max_target_elevation, elevation_count =  init_parameters()
-        min_target_elevation = parameter["min_elevation"]
-        max_target_elevation = parameter["max_elevation"]
-        elevation_count = parameter["count"]
 
-        target_elevations = np.linspace(min_target_elevation, max_target_elevation,num=elevation_count).tolist()
-
-        elevation_areas = calculate_cross_section_area_elevations(distances, elevations, target_elevations)
+        elevation_areas = calculate_cross_section_area_elevations(distances, elevations, parameter)
         out_file = f"{output_dir}/ea_{cross_river_section_id}.txt"
         write_cross_river_sections_data(out_file, elevation_areas)
 
