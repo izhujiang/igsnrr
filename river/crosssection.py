@@ -85,21 +85,14 @@ def calculate_polygon_area_with_target_elevation(distances, elevations, target_e
     return distances, elevations, polygon_areas
 
 
-def calculate_cross_section_area_elevations(distances, elevations, target_elevation_parameter):
+def calculate_cross_section_area_elevations(crs_id, distances, elevations, target_elevation_parameters):
     min_elv, min_index = find_min_value_and_index(elevations)
     end_left, end_left_index = find_max_value_and_index_until(elevations, min_index)
     end_right, end_right_index = find_max_value_and_index_from(elevations, min_index)
     cross_section_range_msg = f'river cross section: [{distances[end_left_index]}, {distances[end_right_index]}] -- index: [{end_left_index}, {end_right_index}].'
     print(cross_section_range_msg)
 
-    if target_elevation_parameter is None:
-        min_target_elevation = min_elv
-        max_target_elevation = min(end_left, end_right)
-        elevation_count = 10
-    else:
-        min_target_elevation = target_elevation_parameter["min_elevation"]
-        max_target_elevation = target_elevation_parameter["max_elevation"]
-        elevation_count = target_elevation_parameter["count"]
+    min_target_elevation, max_target_elevation, elevation_count = get_target_elevation_parameter(target_elevation_parameters, crs_id, min_elv, min(end_left, end_right))
 
     target_elevations = np.linspace(min_target_elevation, max_target_elevation, num=elevation_count).tolist()
 
@@ -120,6 +113,27 @@ def calculate_cross_section_area_elevations(distances, elevations, target_elevat
 
     return results
 
+
+def get_target_elevation_parameter(target_elevation_parameters, crs_id, default_min_target_elevation, default_max_target_elevation):
+    if crs_id in target_elevation_parameters:
+        target_elevation_parameter = target_elevation_parameters[crs_id]
+        if "min_elevation" in target_elevation_parameter:
+            min_target_elevation = target_elevation_parameter["min_elevation"]
+        else:
+            min_target_elevation = default_min_target_elevation
+
+        if "max_elevation" in target_elevation_parameter:
+            max_target_elevation = target_elevation_parameter["max_elevation"]
+        else:
+            max_target_elevation = default_max_target_elevation
+        elevation_count = target_elevation_parameter["count"]
+    else:
+        min_target_elevation = default_min_target_elevation
+        max_target_elevation = default_max_target_elevation
+        elevation_count = target_elevation_parameters["0"]["count"]
+        print(f"{crs_id} use default parameters: {min_target_elevation}  {max_target_elevation}  {elevation_count}")
+
+    return min_target_elevation, max_target_elevation, elevation_count
 
 def read_cross_river_data(filename):
     distances = []
@@ -154,7 +168,7 @@ def write_cross_river_sections_data(filename, results):
         file.writelines(lines)
 
 
-def read_parameters(filename):
+def read_parameters(filename, default_target_elevation_count):
     parameters = {}
 
     if not os.path.exists(filename):
@@ -166,17 +180,32 @@ def read_parameters(filename):
             line = line.strip()
             if line:
                 data = line.split()
-                crs_id = data[0]
-                min_elevation = float(data[1])
-                max_elevation = float(data[2])
-                count = int(data[3])
-                parameters[crs_id] = {
-                    "crs_id": crs_id,
-                    "min_elevation": min_elevation,
-                    "max_elevation": max_elevation,
-                    "count": count
-                }
-
+                if len(data) == 4:
+                    crs_id = data[0]
+                    count = int(data[1])
+                    min_elevation = float(data[2])
+                    max_elevation = float(data[3])
+                    if min_elevation >= max_elevation:
+                        print(f"Error: {crs_id} min_target_elevation >= max_target_elevation")
+                    parameters[crs_id] = {
+                        "crs_id": crs_id,
+                        "min_elevation": min_elevation,
+                        "max_elevation": max_elevation,
+                        "count": count
+                    }
+                elif len(data) == 2:
+                    crs_id = data[0]
+                    count = int(data[1])
+                    parameters[crs_id] = {
+                        "crs_id": crs_id,
+                        "count": count
+                    }
+                else:
+                    continue
+    parameters["0"] = {
+        "crs_id": "0",
+        "count": default_target_elevation_count
+    }
     return parameters
 
 
@@ -241,10 +270,11 @@ def demo():
     input_dir = "data"
     output_dir = "results"
     parameters_filename = "parameters.txt"
+    default_target_elevation_count = 5
 
     # sample_data_filename = f"{input_dir}/{cross_river_section_id}.txt"
     # ------------------------------------------------------
-    parameters = read_parameters(parameters_filename)
+    parameters = read_parameters(parameters_filename, default_target_elevation_count)
 
     for filename in os.listdir(input_dir):
         print("filename: ", filename)
@@ -255,15 +285,9 @@ def demo():
         cross_river_section_id = filename.split(".")[0]
         distances, elevations = read_cross_river_data(sample_data_filename)
 
-        if cross_river_section_id in parameters:
-            parameter = parameters[cross_river_section_id]
-        else:
-            print(f"{cross_river_section_id} use default parameters")
-            parameter = None
-
         # min_target_elevation, max_target_elevation, elevation_count =  init_parameters()
 
-        elevation_areas = calculate_cross_section_area_elevations(distances, elevations, parameter)
+        elevation_areas = calculate_cross_section_area_elevations(cross_river_section_id, distances, elevations, parameters)
         out_file = f"{output_dir}/ea_{cross_river_section_id}.txt"
         write_cross_river_sections_data(out_file, elevation_areas)
 

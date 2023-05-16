@@ -1,5 +1,5 @@
-crs_id	target_min_elevation	target_max_elevation	count
-crs001 	1039.60 		1043			10
-2 	1039.60 		1053			8
-3 	1039.60 		1055			8
-4 	1039.60 		1053			8
+crs_id	count target_min_elevation	target_max_elevation
+crs001 	10    1039.60 			1043
+crs002 	8
+3 	8     1039.60 			1055
+4 	8     1039.60 			1053
