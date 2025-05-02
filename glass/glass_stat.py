@@ -10,7 +10,7 @@ import arcpy
 # from arcpy import env
 # from arcpy.sa import *
 
-# calculate of the summary 
+# calculate of the summary
 # input: 46 files(GLASS11A01.V42.A{YYYY}***.h{HH}v{VV}.*.hdf)
 # with same YYYY, HH and VV.
 def calcYearlyValues(files, product, h, v, year, resultDir, tempDir):
@@ -30,10 +30,10 @@ def calcYearlyValues(files, product, h, v, year, resultDir, tempDir):
             productPrefix(product),
             year, h, v, "")
     outputPath = (os.path.join(resultDir, outputFile))
-    
+
     files.sort()
     count = len(files)
-    if count < 23:
+    if count < 10:
         print("error: only {0} valid files found in year:{1} h:{2} v:{3}".format(
             count,  year, h, v))
         return
@@ -56,15 +56,15 @@ def calcYearlyValues(files, product, h, v, year, resultDir, tempDir):
 
     ignore_nodata = "DATA"
     # ignore_nodata = "NODATA"
-
+    half = count // 2
     tempRaster = arcpy.sa.Times(
-            arcpy.sa.CellStatistics(inputRasters[:count/2], "SUM", ignore_nodata),
+            arcpy.sa.CellStatistics(inputRasters[:half], "SUM", ignore_nodata),
             8)
     tempRaster.save(temp_tif1)
 
     tempRaster = arcpy.sa.Times(
             arcpy.sa.CellStatistics(
-                inputRasters[count/2: count-1],
+                inputRasters[half: count-1],
                 "SUM", ignore_nodata),
             8)
 
@@ -107,7 +107,7 @@ def lastDays(year):
     dif_days = (d2 - d1).days - 8 * 45
     return dif_days
 
-# maximiun 
+# maximiun
 # input: 46 files(GLASS11A01.V42.A{YYYY}***.h{HH}v{VV}.*.hdf)
 # with same YYYY, HH and VV.
 def maximumByYear(files, product, h, v, year, resultDir, tempDir):
@@ -116,7 +116,7 @@ def maximumByYear(files, product, h, v, year, resultDir, tempDir):
     files.sort()
 
     count = len(files)
-    if count < 23:
+    if count < 10:
         print("error: only {0} valid files found in year:{1} h:{2} v:{3}".format(
             count,  year, h, v))
         return
@@ -215,7 +215,7 @@ def filterLAIRaster(raster):
     # inFalseConstant = 0
 
     # Execute Con
-    outRaster = arcpy.sa.Con(inRaster<100, inTrueRaster ) 
+    outRaster = arcpy.sa.Con(inRaster<100, inTrueRaster )
     return outRaster
 
 # todo: some filters with ET raster
@@ -229,14 +229,14 @@ def defaultFilter(raster):
     return outRaster
 
 # assuming: inputRoot, outputRoot, temp_dir exist and valid
-def batach_statistics(
+def batch_statistics(
         statisticsType,
         inputRoot,
         outputRoot,
         temp_dir,
         outputOrganizedByYearFirst):
     # GLASS01E01.V50.A2002001.h25v04.2020323.hdf
-    filePattern = re.compile(".*A(\d{4}).*\.h(\d{2})v(\d{2}).*\.hdf$")
+    filePattern = re.compile(".*A(\d{4})(\d{3})\.h(\d{2})v(\d{2}).*\.hdf$")
 
     # group files by (year, h, v)
     fgroup = {}
@@ -245,18 +245,20 @@ def batach_statistics(
             m = filePattern.search(f)
             if m:
                 year = m.group(1)
-                h = m.group(2)
-                v = m.group(3)
+                doy = int(m.group(2))
+                h = m.group(3)
+                v = m.group(4)
                 k = "A{0}h{1}v{2}".format(year, h, v)
                 if not k in fgroup:
                     fgroup[k] = []
-                fgroup[k].append(os.path.join(curRoot, f))
-    
+                if doy >= validDoys[0] and doy < validDoys[1]:
+                    fgroup[k].append(os.path.join(curRoot, f))
+
     for k, files in fgroup.items():
         year = k[1:5]
         h = k[6:8]
         v = k[9:11]
-        
+
         if outputOrganizedByYearFirst:
             outputDir = os.path.join(outputRoot, year)
         else:
@@ -264,10 +266,10 @@ def batach_statistics(
             outputDir = os.path.join(outputRoot, hvPath)
         if not os.path.exists(outputDir):
             os.makedirs(outputDir)
- 
+
         print("processing {0}: {1}, h:{2}, v:{3}, year:{4}...".format(
             product, statisticsType, h, v, year))
- 
+
         if statisticsType == "maxValue":
             maximumByYear(
                     files,
@@ -285,24 +287,25 @@ def batach_statistics(
                     outputDir,
                     temp_dir)
 
-
 if __name__ == "__main__":
     # # Check out the ArcGIS Spatial Analyst extension license
     arcpy.CheckOutExtension("Spatial")
     arcpy.env.overwriteOutput = True
     # process LAI or ET
-    # http://www.glass.umd.edu/LAI/MODIS/1km/
-    # http://www.glass.umd.edu/ET/MODIS/1km/
 
     # --------------------------------------------------------------
     # Input parameters:
 
-    product = "LAI"
-    # product = "ET"
-    # statisticsType = "yearlyValue"
-    statisticsType = "maxValue"
+    # product = "LAI"
+    product = "ET"
+    statisticsType = "yearlyValue"
+    # statisticsType = "maxValue"
 
-    root = "Z:/share/glass"
+    # valid day of year range[start, end)
+    # validDoys = [1, 365]
+    validDoys = [121, 281]
+
+    root = "C:/Workspace/glass/data"
 
     # input and output directories
     inputRoot = os.path.join(root, product)
@@ -310,11 +313,12 @@ if __name__ == "__main__":
     outputOrganizedByYearFirst = True
     temp_dir = os.path.join(root, "temp")
     # or
-    # inputRoot = "Z:/share/glass/" + product 
+    # inputRoot = "Z:/share/glass/" + product
     # outputRoot ="Z:/share/glass/statistics/" + product + "/" + statisticsType
     # outputOrganizedByYearFirst = True
     # temp_dir = "Z:/share/glass/" + "temp"
     # -------------------------------------------------------------
+
     if not os.path.exists(inputRoot):
         print("Invalid data directory", inputRoot)
 
@@ -323,7 +327,7 @@ if __name__ == "__main__":
     if not os.path.exists(temp_dir):
         os.makedirs(temp_dir)
 
-    batach_statistics(
+    batch_statistics(
             statisticsType,
             inputRoot,
             outputRoot,
